@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+
+# PyTorch / ML
+*.pth
+*.pt
+*.onnx
+*.tflite
+runs/
+checkpoints/
+
+# Datasets
+dataset/full_dataset/
+dataset/raw/
+dataset/train/
+dataset/val/
+dataset/test/
+
+# Results
+results/*.png
+results/*.jpg
+
+# OS
+.DS_Store
+
+# Flutter
+mobile_app/**/build/
+mobile_app/**/.dart_tool/
+mobile_app/**/.idea/
+mobile_app/**/*.iml
