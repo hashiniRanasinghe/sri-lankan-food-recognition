@@ -1,0 +1,46 @@
+{
+  "model_name": "Sri Lankan Food Recognition",
+  "version": "1.0.0",
+  "author": "Hashini Ranasinghe",
+  "date_trained": "Unknown",
+  "accuracy": {
+    "validation": 90.25,
+    "test": 0.0
+  },
+  "architecture": {
+    "type": "Prototypical Network",
+    "embedding_dim": 128,
+    "input_size": [
+      224,
+      224
+    ],
+    "normalization": {
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  },
+  "classes": [
+    "carrot_raw",
+    "carrot_white_curry",
+    "greenbeans_raw",
+    "greenbeans_tempered",
+    "greenbeans_white_curry",
+    "pumpkin_raw",
+    "pumpkin_red_curry",
+    "pumpkin_white_curry"
+  ],
+  "num_classes": 8,
+  "training": {
+    "epochs": 52,
+    "framework": "PyTorch",
+    "device": "CPU/GPU"
+  }
+}

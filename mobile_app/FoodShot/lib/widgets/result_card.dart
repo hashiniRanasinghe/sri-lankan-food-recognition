@@ -6,118 +6,204 @@ import '../utils/constants.dart';
 class ResultCard extends StatelessWidget {
   final String prediction;
   final double confidence;
+  final Map<String, double>? allScores;
+  final double? processingTime;
 
   const ResultCard({
     Key? key,
     required this.prediction,
     required this.confidence,
+    this.allScores,
+    this.processingTime,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final displayName = AppConstants.foodClassNames[prediction] ?? prediction;
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        side: BorderSide(color: AppConstants.borderColor),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Row(
               children: [
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  color: cs.primary,
-                  size: 24,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _getConfidenceColor(confidence).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    color: _getConfidenceColor(confidence),
+                    size: 28,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'Recognition Result',
-                  style: Theme.of(context).textTheme.titleLarge,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Prediction',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        displayName,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            
-            const Divider(height: 32),
-            
-            // Prediction
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppConstants.borderColor),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Food Type:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    prediction,
-                    style: TextStyle(
-                      fontSize: 24,
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Confidence
-            Column(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Confidence',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w500,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 12),
-                
-                // Confidence bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                  child: LinearProgressIndicator(
-                    value: confidence,
-                    minHeight: 10,
-                    backgroundColor: AppConstants.borderColor,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getConfidenceColor(confidence),
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 8),
-                
                 Text(
                   '${(confidence * 100).toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: _getConfidenceColor(confidence),
                   ),
                 ),
               ],
             ),
-            
-            const SizedBox(height: 16),
-            
-            // Interpretation
-            _buildInterpretation(confidence),
+
+            const SizedBox(height: 12),
+
+            // Confidence bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: confidence,
+                minHeight: 10,
+                backgroundColor: cs.surfaceVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _getConfidenceColor(confidence),
+                ),
+              ),
+            ),
+
+            if (processingTime != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.speed_rounded,
+                    size: 16,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Processed in ${processingTime!.toStringAsFixed(2)}s',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // All scores (expandable)
+            if (allScores != null && allScores!.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 12),
+              Text(
+                'All Predictions',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...allScores!.entries.map((entry) {
+                final name =
+                    AppConstants.foodClassNames[entry.key] ?? entry.key;
+                final score = entry.value;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: score,
+                            minHeight: 6,
+                            backgroundColor: cs.surfaceVariant,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              cs.primary.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 45,
+                        child: Text(
+                          '${(score * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
           ],
         ),
       ),
@@ -128,50 +214,5 @@ class ResultCard extends StatelessWidget {
     if (confidence >= 0.8) return Colors.green;
     if (confidence >= 0.6) return Colors.orange;
     return Colors.red;
-  }
-
-  Widget _buildInterpretation(double confidence) {
-    String message;
-    IconData icon;
-    Color color;
-
-    if (confidence >= 0.8) {
-      message = 'High confidence - Very likely correct';
-      icon = Icons.thumb_up;
-      color = Colors.green;
-    } else if (confidence >= 0.6) {
-      message = 'Medium confidence - Probably correct';
-      icon = Icons.lightbulb_outline;
-      color = Colors.orange;
-    } else {
-      message = 'Low confidence - May need verification';
-      icon = Icons.warning_amber;
-      color = Colors.red;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

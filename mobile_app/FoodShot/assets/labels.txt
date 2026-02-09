@@ -1,0 +1,8 @@
+carrot_raw
+carrot_white_curry
+greenbeans_raw
+greenbeans_tempered
+greenbeans_white_curry
+pumpkin_raw
+pumpkin_red_curry
+pumpkin_white_curry
