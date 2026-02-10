@@ -1,0 +1,34 @@
+{
+  "carrot_raw": {
+    "accuracy": 100.0,
+    "num_samples": 6
+  },
+  "carrot_white_curry": {
+    "accuracy": 33.33333333333333,
+    "num_samples": 6
+  },
+  "greenbeans_raw": {
+    "accuracy": 100.0,
+    "num_samples": 7
+  },
+  "greenbeans_tempered": {
+    "accuracy": 66.66666666666666,
+    "num_samples": 6
+  },
+  "greenbeans_white_curry": {
+    "accuracy": 100.0,
+    "num_samples": 7
+  },
+  "pumpkin_raw": {
+    "accuracy": 100.0,
+    "num_samples": 6
+  },
+  "pumpkin_red_curry": {
+    "accuracy": 87.5,
+    "num_samples": 8
+  },
+  "pumpkin_white_curry": {
+    "accuracy": 85.71428571428571,
+    "num_samples": 7
+  }
+}

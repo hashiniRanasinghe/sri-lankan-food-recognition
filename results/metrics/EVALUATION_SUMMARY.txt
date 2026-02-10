@@ -1,0 +1,49 @@
+
+MODEL INFORMATION:
+  Architecture: Custom Prototypical Network
+  Embedding Dimension: 128
+  Training Method: Few-shot episodic learning (5-way 5-shot)
+  Best Epoch: 40
+  Total Epochs Trained: 52
+
+DATASET:
+  Training Images: 230
+  Validation Images: 48
+  Test Images: 53
+  Total Images: 331
+  Classes: 8
+
+PERFORMANCE METRICS:
+  ✅ Best Validation Accuracy: 90.00%
+  ✅ Few-Shot Test Accuracy: 87.75%
+  ✅ Full Test Accuracy: 84.91%
+  ✅ Mean Per-Class Accuracy: 84.15%
+  ✅ Average Confidence: 85.3%
+
+BEST PERFORMING CLASSES:
+  greenbeans_white_curry        : 100.00%
+  pumpkin_raw                   : 100.00%
+  carrot_raw                    : 100.00%
+
+WORST PERFORMING CLASSES:
+  carrot_white_curry            : 33.33%
+  greenbeans_tempered           : 66.67%
+  pumpkin_white_curry           : 85.71%
+
+FILES GENERATED:
+  ✅ best_model.pth - Trained model weights
+  ✅ model_torchscript.pt - Mobile-ready model
+  ✅ model_info.json - Complete model metadata
+  ✅ training_curves.png - Training visualization
+  ✅ confusion_matrix.png - Confusion matrix
+  ✅ per_class_accuracy.png - Per-class performance
+  ✅ correct_predictions.png - Sample correct predictions
+  ✅ incorrect_predictions.png - Sample errors (if any)
+  ✅ test_results.json - Test metrics
+  ✅ full_test_results.json - Full test metrics
+  ✅ per_class_metrics.json - Per-class breakdown
+  ✅ classification_report.txt - Detailed report
+  ✅ README.md - Usage documentation
+
+ALL FILES SAVED TO:
+  📂 /content/drive/MyDrive/Research-2026/SriLankanFoodRecognition/

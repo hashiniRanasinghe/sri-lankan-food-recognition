@@ -1,0 +1,18 @@
+Sri Lankan Food Recognition - Classification Report
+Best Model: Epoch 40, Val Acc: 90.00%
+======================================================================
+
+                        precision    recall  f1-score   support
+
+            carrot_raw      0.750     1.000     0.857         6
+    carrot_white_curry      0.667     0.333     0.444         6
+        greenbeans_raw      0.875     1.000     0.933         7
+   greenbeans_tempered      1.000     0.667     0.800         6
+greenbeans_white_curry      1.000     1.000     1.000         7
+           pumpkin_raw      1.000     1.000     1.000         6
+     pumpkin_red_curry      0.778     0.875     0.824         8
+   pumpkin_white_curry      0.750     0.857     0.800         7
+
+              accuracy                          0.849        53
+             macro avg      0.852     0.842     0.832        53
+          weighted avg      0.851     0.849     0.836        53

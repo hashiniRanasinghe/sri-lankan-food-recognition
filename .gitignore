@@ -1,35 +1,238 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.env
-venv/
+# Sri Lankan Food Recognition - .gitignore
 
-# PyTorch / ML
+# ==========================================
+# Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+env/
+ENV/
+
+# ==========================================
+# PyTorch & Model Files
+# ==========================================
 *.pth
 *.pt
-*.onnx
-*.tflite
-runs/
+*.ckpt
 checkpoints/
+checkpoint_epoch_*.pth
+best_model.pth
+exported_model/
 
-# Datasets
-dataset/full_dataset/
-dataset/raw/
+# Exception: Keep example model config
+!model/example_config.pth
+
+# ==========================================
+# TensorFlow & TFLite
+# ==========================================
+*.pb
+*.tflite
+*.h5
+saved_model/
+
+# Exception: Keep mobile assets
+!mobile_app/assets/*.tflite
+!mobile_app/assets/*.json
+!mobile_app/assets/*.txt
+
+# ==========================================
+# Dataset Images (Too Large)
+# ==========================================
 dataset/train/
 dataset/val/
 dataset/test/
+dataset/**/*.jpg
+dataset/**/*.jpeg
+dataset/**/*.png
+dataset/**/*.JPG
+dataset/**/*.JPEG
+dataset/**/*.PNG
 
-# Results
-results/*.png
-results/*.jpg
+# Exception: Keep sample images for documentation
+!dataset/sample_images/*.jpg
+!dataset/sample_images/*.png
+!docs/images/*.jpg
+!docs/images/*.png
 
-# OS
+# ==========================================
+# Jupyter Notebooks
+# ==========================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+*-checkpoint.ipynb
+
+# Exception: Keep clean notebooks
+!notebooks/*.ipynb
+
+# ==========================================
+# IDE & Editors
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
 
-# Flutter
-mobile_app/**/build/
-mobile_app/**/.dart_tool/
-mobile_app/**/.idea/
-mobile_app/**/*.iml
+# ==========================================
+# Flutter & Dart
+# ==========================================
+mobile_app/.dart_tool/
+mobile_app/.flutter-plugins
+mobile_app/.flutter-plugins-dependencies
+mobile_app/.packages
+mobile_app/.pub-cache/
+mobile_app/.pub/
+mobile_app/build/
+mobile_app/ios/Pods/
+mobile_app/ios/.symlinks/
+mobile_app/ios/Flutter/Flutter.framework
+mobile_app/ios/Flutter/Flutter.podspec
+mobile_app/android/.gradle/
+mobile_app/android/captures/
+mobile_app/android/gradlew
+mobile_app/android/gradlew.bat
+mobile_app/android/local.properties
+mobile_app/android/key.properties
+mobile_app/android/app/google-services.json
+mobile_app/ios/Runner/GoogleService-Info.plist
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+*.cover
+.hypothesis/
+
+# ==========================================
+# Logs
+# ==========================================
+*.log
+logs/
+*.out
+
+# ==========================================
+# Security & Credentials (IMPORTANT!)
+# ==========================================
+*.pem
+*.key
+.env
+.env.local
+secrets.yaml
+*Recovery-Codes*.txt
+api_keys.txt
+
+# ==========================================
+# Temporary Files
+# ==========================================
+tmp/
+temp/
+*.tmp
+*.cache
+
+# ==========================================
+# Compressed Files
+# ==========================================
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Exception: Keep release assets
+!releases/*.zip
+
+# ==========================================
+# Large Result Files
+# ==========================================
+results/full_test_results.json
+results/detailed_metrics.json
+
+# Keep summary files only
+!results/metrics/summary.json
+!results/plots/*.png
+
+# ==========================================
+# Mobile Build Artifacts
+# ==========================================
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+
+# Exception: Keep release builds in releases/
+!releases/*.apk
+!releases/*.aab
+
+# ==========================================
+# Documentation Build
+# ==========================================
+docs/_build/
+docs/.doctrees/
+site/
+
+# ==========================================
+# Package Distribution
+# ==========================================
+srilankan-food-trainer/dist/
+srilankan-food-trainer/build/
+srilankan-food-trainer/*.egg-info
+
+# ==========================================
+# macOS
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ==========================================
+# Windows
+# ==========================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==========================================
+# Linux
+# ==========================================
+*~
+
+# ==========================================
+# Project-Specific
+# ==========================================
+# Personal test images
+Potato\ dataset/
+potato_tempered/
+other\ Dataset/
+
+# Backup files
+*.bak
+*.backup
+
+# Local configuration
+config.local.yaml
+local_settings.py
