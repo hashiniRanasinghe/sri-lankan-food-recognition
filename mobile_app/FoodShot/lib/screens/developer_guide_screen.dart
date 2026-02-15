@@ -284,12 +284,8 @@ model_scripted.save("model.pt")
                   height: 36,
                   width: 36,
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryColor.withValues(
-                      alpha: 0.08,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.radiusMd,
-                    ),
+                    color: AppConstants.primaryColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppConstants.borderColor),
                   ),
                   child: Icon(
