@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+
   
   # TFLite for model inference - UPDATED VERSION
   tflite_flutter: ^0.12.1
@@ -19,11 +21,13 @@ dependencies:
   
   # File operations
   path_provider: ^2.1.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+
 
 flutter:
   uses-material-design: true

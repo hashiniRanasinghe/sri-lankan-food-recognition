@@ -16,36 +16,31 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   File? _image;
-  String? _prediction;
-  double? _confidence;
-  bool _isLoading = false;
+  Map<String, dynamic>? _result;
+  bool _isProcessing = false;
   bool _modelLoaded = false;
-  
+
   final ImagePicker _picker = ImagePicker();
   final ModelService _modelService = ModelService();
 
   @override
   void initState() {
     super.initState();
-    _loadModel();
+    _initializeModel();
   }
 
-  Future<void> _loadModel() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      await _modelService.loadModel();
+  Future<void> _initializeModel() async {
+    final success = await _modelService.loadModel();
+    if (mounted) {
       setState(() {
-        _modelLoaded = true;
-        _isLoading = false;
+        _modelLoaded = success;
       });
-      _showMessage('Model loaded successfully!', isError: false);
-    } catch (e) {
-      setState(() {
-        _modelLoaded = false;
-        _isLoading = false;
-      });
-      _showMessage('Model not available yet. Using demo mode.', isError: false);
+
+      if (success) {
+        _showMessage('Model loaded successfully!', isError: false);
+      } else {
+        _showMessage('Running in demo mode', isError: false);
+      }
     }
   }
 
@@ -53,41 +48,54 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
+        maxWidth: 1024, // Reduced from 800 for better quality
+        maxHeight: 1024,
+        imageQuality: 90, // Increased quality
       );
 
-      if (pickedFile != null) {
+      if (pickedFile == null) return;
+
+      // Show loading immediately
+      setState(() {
+        _image = File(pickedFile.path);
+        _result = null;
+        _isProcessing = true;
+      });
+
+      // Run inference
+      final result = await _modelService.recognizeFood(_image!);
+
+      if (mounted) {
         setState(() {
-          _image = File(pickedFile.path);
-          _prediction = null;
-          _confidence = null;
-          _isLoading = true;
+          _result = result;
+          _isProcessing = false;
         });
 
-        // Run inference (or demo mode if model not loaded)
-        final result = await _modelService.recognizeFood(_image!);
-        
-        setState(() {
-          _prediction = result['class'];
-          _confidence = result['confidence'];
-          _isLoading = false;
-        });
+        // Show demo mode warning if applicable
+        if (result['is_demo'] == true) {
+          _showMessage('Demo mode - using sample prediction', isError: false);
+        }
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showMessage('Error: ${e.toString()}', isError: true);
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        _showMessage('Error: ${e.toString()}', isError: true);
+      }
     }
   }
 
   void _showMessage(String message, {required bool isError}) {
+    if (!mounted) return;
+
     final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? cs.error : cs.primary,
-        duration: const Duration(seconds: 2),
+        duration: Duration(seconds: isError ? 3 : 2),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -95,8 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _resetImage() {
     setState(() {
       _image = null;
-      _prediction = null;
-      _confidence = null;
+      _result = null;
     });
   }
 
@@ -119,39 +126,53 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'About',
           ),
         ],
-        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(AppConstants.pagePadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeroHeader(cs),
-                const SizedBox(height: AppConstants.sectionSpacing),
-                _buildStatusIndicator(),
-                const SizedBox(height: AppConstants.sectionSpacing),
-                _buildInstructions(),
-                const SizedBox(height: AppConstants.sectionSpacing),
-                _buildImageDisplay(),
-                const SizedBox(height: AppConstants.sectionSpacing),
-                _buildActionButtons(),
-                const SizedBox(height: AppConstants.sectionSpacing),
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (_prediction != null)
-                  ResultCard(
-                    prediction: _prediction!,
-                    confidence: _confidence!,
+          padding: const EdgeInsets.all(AppConstants.pagePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeroHeader(cs),
+              const SizedBox(height: AppConstants.sectionSpacing),
+              // _buildStatusIndicator(),
+              // const SizedBox(height: AppConstants.sectionSpacing),
+              _buildInstructions(),
+              const SizedBox(height: AppConstants.sectionSpacing),
+              _buildImageDisplay(),
+              const SizedBox(height: AppConstants.sectionSpacing),
+              _buildActionButtons(),
+              const SizedBox(height: AppConstants.sectionSpacing),
+
+              // Results section
+              if (_isProcessing)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Analyzing image...'),
+                      ],
+                    ),
                   ),
-              ],
-            ),
+                )
+              else if (_result != null)
+                ResultCard(
+                  prediction: _result!['class'] as String,
+                  confidence: _result!['confidence'] as double,
+                  processingTime: _result!['processing_time'] as double,
+                  allScores: _result!['all_scores'] as Map<String, double>?,
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  // ... (keep existing widget methods but add null safety)
 
   Widget _buildHeroHeader(ColorScheme cs) {
     return Container(
@@ -177,7 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
               color: cs.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
             ),
-            child: Icon(Icons.auto_awesome_rounded, color: cs.primary),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: cs.primary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -187,17 +212,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   AppConstants.appSubtitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Pick an image and get a prediction in seconds.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  'Snap a photo and get instant predictions',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -207,38 +232,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatusIndicator() {
-    final cs = Theme.of(context).colorScheme;
-    final bg = _modelLoaded ? Colors.green : cs.tertiary;
-    final fg = _modelLoaded ? Colors.green.shade900 : cs.onSurface;
+  // Widget _buildStatusIndicator() {
+  //   final cs = Theme.of(context).colorScheme;
+  //   final isReady = _modelLoaded && !_isProcessing;
+  //   final bg = isReady ? Colors.green : cs.tertiary;
+  //   final fg = isReady ? Colors.green.shade900 : cs.onSurface;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: bg.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _modelLoaded ? Icons.check_circle_rounded : Icons.bolt_rounded,
-            color: bg,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _modelLoaded ? 'Model Ready' : 'Demo Mode',
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  //   // return Center(
+  //   //   child: Container(
+  //   //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  //   //     decoration: BoxDecoration(
+  //   //       color: bg.withValues(alpha: 0.10),
+  //   //       borderRadius: BorderRadius.circular(999),
+  //   //       border: Border.all(color: bg.withValues(alpha: 0.25)),
+  //   //     ),
+  //   //     child: Row(
+  //   //       mainAxisSize: MainAxisSize.min,
+  //   //       children: [
+  //   //         Icon(
+  //   //           isReady
+  //   //               ? Icons.check_circle_rounded
+  //   //               : Icons.hourglass_empty_rounded,
+  //   //           color: bg,
+  //   //           size: 16,
+  //   //         ),
+  //   //         const SizedBox(width: 8),
+  //   //         Text(
+  //   //           isReady
+  //   //               ? 'Model Ready'
+  //   //               : (_isProcessing ? 'Processing...' : 'Demo Mode'),
+  //   //           style: TextStyle(
+  //   //             color: fg,
+  //   //             fontWeight: FontWeight.w700,
+  //   //             fontSize: 13,
+  //   //           ),
+  //   //         ),
+  //   //       ],
+  //   //     ),
+  //   //   ),
+  //   // );
+  // }
 
   Widget _buildInstructions() {
     return Card(
@@ -246,23 +279,21 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Icon(Icons.restaurant_rounded, size: 40, color: AppConstants.primaryColor),
+            Icon(
+              Icons.restaurant_rounded,
+              size: 40,
+              color: AppConstants.primaryColor,
+            ),
             const SizedBox(height: 12),
             const Text(
               'Recognize Sri Lankan Food',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Take a photo or select from gallery',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+              'Take a photo or choose from your gallery',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -297,14 +328,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     color: cs.onSurfaceVariant,
                     fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Use Camera or Gallery',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  'Use Camera or Gallery below',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],
             )
@@ -326,11 +358,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.close),
                     onPressed: _resetImage,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                      backgroundColor: Colors.black.withValues(alpha: 0.6),
                       foregroundColor: Colors.white,
                     ),
+                    tooltip: 'Clear image',
                   ),
                 ),
+                if (_isProcessing)
+                  Container(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
@@ -344,7 +386,9 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
+                onPressed: _isProcessing
+                    ? null
+                    : () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt_rounded),
                 label: const Text('Camera'),
               ),
@@ -352,7 +396,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _pickImage(ImageSource.gallery),
+                onPressed: _isProcessing
+                    ? null
+                    : () => _pickImage(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library_rounded),
                 label: const Text('Gallery'),
               ),
