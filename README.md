@@ -1,6 +1,7 @@
 # 🍛 Sri Lankan Food Recognition
 
 A transformation-aware deep learning system for recognizing vegetable ingredients across cooking states in Sri Lankan cuisine.
+
 ---
 
 ## 📖 Overview
@@ -14,57 +15,38 @@ Sri Lankan cooking dramatically transforms vegetable appearance through turmeric
 
 ### The Problem
 
-<table>
-<tr>
-<td><img src="docs/images/carrot_raw.jpg" width="200"/><br/><b>Carrot (Raw)</b><br/>Bright orange</td>
-<td><img src="docs/images/carrot_curry.jpg" width="200"/><br/><b>Carrot (Red Curry)</b><br/>Yellow from turmeric</td>
-<td><img src="docs/images/carrot_white.jpg" width="200"/><br/><b>Carrot (White Curry)</b><br/>Cream from coconut milk</td>
-</tr>
-</table>
+| Raw | Red Curry | White Curry |
+|-----|-----------|-------------|
+| 🟠 **Carrot (Raw)** — Bright orange | 🟡 **Pumpkin (Red Curry)** — Yellow from turmeric | 🤍 **Carrot (White Curry)** — Cream from coconut milk |
 
-Traditional food recognition systems fail because they rely on color, texture, and shape—all of which change dramatically during Sri Lankan cooking.
+Traditional food recognition systems fail because they rely on color, texture, and shape — all of which change dramatically during Sri Lankan cooking.
 
 ---
 
 ## ✨ Features
 
 ### 🎯 Core Capabilities
-- **9 Vegetable-State Combinations**: Carrot (Raw/Red Curry/White Curry), Green Beans (Raw/Tempered/White Curry), Pumpkin (Raw/Red Curry/White Curry)
-- **90.25% Validation Accuracy** on held-out test set
-- **Transformation-Aware Learning**: Uses cooking method as contextual information
-- **Few-Shot Learning**: Requires only 50-100 images per class for extension
+- **8 Vegetable-State Combinations**: Carrot (Raw, White Curry), Green Beans (Raw, Tempered, White Curry), Pumpkin (Raw, Red Curry, White Curry)
+- **90.25% Best Validation Accuracy** / **84.91% Full Test Accuracy** / **87.75% Few-Shot Test Accuracy**
+- **Transformation-Aware Learning**: Learns features that remain consistent across cooking transformations
+- **Few-Shot Learning**: Requires only 30–50 images per class
 
 ### 📱 Mobile App
-- **On-Device Inference**: Works offline, <2 second predictions
-- **TFLite Optimization**: Model runs efficiently on mobile devices
-- **Clean UI**: Camera/gallery support with confidence visualization
-- **Cross-Platform**: iOS and Android support
+- **On-Device Inference**: Works fully offline, <100ms predictions
+- **TFLite Optimisation**: Model (492.9 KB) runs efficiently on Android
+- **Clean UI**: Camera/gallery support with confidence visualisation
+- **Cross-Platform**: Flutter-based (Android and iOS)
 
 ### 🔧 Python Library
-- **5-Line Extension API**: Add new classes without retraining original dataset
-- **Transfer Learning**: Preserves knowledge of existing classes
+- **Simple Extension API**: Add new classes without retraining the original model
+- **Transfer Learning**: Preserves knowledge of existing 8 classes
 - **PyPI Package**: `pip install srilankan-food-trainer`
 
 ---
 
 ## 🚀 Quick Start
 
-### 1️⃣ Use Pre-Trained Model (Inference)
-
-```python
-# Install library
-pip install srilankan-food-trainer
-
-# Load model from HuggingFace
-from srilankan_food_trainer import load_pretrained_model, predict_image
-
-model, classes = load_pretrained_model()
-result = predict_image(model, "path/to/food_image.jpg", classes)
-
-print(f"Predicted: {result['class']} ({result['confidence']:.2%})")
-```
-
-### 2️⃣ Extend Model with New Class
+### 1️⃣ Extend Model with New Class
 
 ```python
 from srilankan_food_trainer import FoodModelExtender
@@ -72,7 +54,7 @@ from srilankan_food_trainer import FoodModelExtender
 # Create extender
 extender = FoodModelExtender(verbose=True)
 
-# Add new class (e.g., potato_tempered)
+# Add new class (ZIP filename = class name, e.g. potato_tempered.zip)
 extender.add_class("potato_tempered", "potato_tempered.zip", auto_extract=True)
 
 # Train (preserves original 8 classes + adds new one)
@@ -82,7 +64,7 @@ results = extender.train(epochs=50)
 extender.save("extended_model.pth")
 ```
 
-### 3️⃣ Run Mobile App
+### 2️⃣ Run Mobile App
 
 ```bash
 cd mobile_app
@@ -95,27 +77,31 @@ flutter run
 ## 📊 Model Performance
 
 ### Overall Metrics
+
 | Metric | Value |
 |--------|-------|
-| **Validation Accuracy** | 90.25% |
-| **Test Accuracy** | 88.73% |
-| **Inference Time (CPU)** | 1.8s |
-| **Mobile Inference** | <2s |
-| **Model Size (TFLite)** | 12 MB |
+| **Best Validation Accuracy** | 90.25% (epoch 52) |
+| **Few-Shot Test Accuracy** | 87.75% (200 episodes, 1,600 predictions) |
+| **Full Test Accuracy** | 84.91% (45/53 images correct) |
+| **Mean Per-Class Accuracy** | 84.15% |
+| **Average Confidence** | 85.32% |
+| **Mobile Inference Time** | <100ms |
+| **TFLite Model Size** | 492.9 KB |
+| **Training Duration** | ~5–7 hours (55 epochs, CPU) |
 
-### Per-Class Performance
+### Per-Class Performance (Full Test Set)
 
-| Class | Precision | Recall | F1-Score |
-|-------|-----------|--------|----------|
-| carrot_raw | 0.95 | 0.92 | 0.93 |
-| carrot_red_curry | 0.92 | 0.91 | 0.91 |
-| carrot_white_curry | 0.88 | 0.90 | 0.89 |
-| greenbeans_raw | 0.91 | 0.89 | 0.90 |
-| greenbeans_tempered | 0.87 | 0.88 | 0.87 |
-| greenbeans_white_curry | 0.89 | 0.91 | 0.90 |
-| pumpkin_raw | 0.93 | 0.92 | 0.92 |
-| pumpkin_red_curry | 0.86 | 0.87 | 0.86 |
-| pumpkin_white_curry | 0.88 | 0.89 | 0.88 |
+| Class | Precision | Recall | F1-Score | Support |
+|-------|-----------|--------|----------|---------|
+| carrot_raw | 0.750 | 1.000 | 0.857 | 6 |
+| carrot_white_curry | 0.667 | 0.333 | 0.444 | 6 |
+| greenbeans_raw | 0.875 | 1.000 | 0.933 | 7 |
+| greenbeans_tempered | 1.000 | 0.667 | 0.800 | 6 |
+| greenbeans_white_curry | 1.000 | 1.000 | 1.000 | 7 |
+| pumpkin_raw | 1.000 | 1.000 | 1.000 | 6 |
+| pumpkin_red_curry | 0.778 | 0.875 | 0.824 | 8 |
+| pumpkin_white_curry | 0.750 | 0.857 | 0.800 | 7 |
+| **Macro Avg** | **0.852** | **0.842** | **0.832** | **53** |
 
 ---
 
@@ -127,26 +113,27 @@ flutter run
 Input Image (224×224)
     ↓
 Embedding Network (Custom CNN)
-├── Conv Block 1: 64 filters
-├── Conv Block 2: 128 filters  
-├── Conv Block 3: 256 filters
-├── Conv Block 4: 512 filters
+├── Conv Block 1: 32 filters, BN + ReLU + MaxPool
+├── Conv Block 2: 64 filters, BN + ReLU + MaxPool
+├── Conv Block 3: 128 filters, BN + ReLU + MaxPool
+├── Conv Block 4: 256 filters, BN + ReLU + MaxPool
 └── Global Average Pooling
     ↓
-Embedding Vector (128-dim)
+FC Layer 1: 256 units, ReLU, Dropout 0.3
+    ↓
+FC Layer 2: 128-dim Embedding Vector
     ↓
 Prototypical Classification
-├── Compute distance to class prototypes
-├── Apply transformation-aware weighting
-└── Return nearest class + confidence
+├── Compute Euclidean distance to class prototypes
+└── Return nearest class + confidence score
 ```
 
-### Key Innovations
-
-1. **Transformation-Invariant Embeddings**: Learned features remain consistent across cooking states
-2. **Hierarchical Learning**: Cooking method context guides feature extraction
-3. **Metric Learning**: Distance-based classification instead of softmax
-4. **Few-Shot Capability**: Extends to new classes with minimal examples
+### Training Configuration
+- **Episodes per epoch**: 100
+- **Few-shot setup**: 4-way 2-shot
+- **Total epochs trained**: 55 (best at epoch 52)
+- **Optimiser**: Adam (lr=0.0001, StepLR ×0.5 at epoch 50)
+- **Regularisation**: Dropout 0.3, Weight decay 0.0001
 
 ---
 
@@ -154,147 +141,72 @@ Prototypical Classification
 
 ```
 sri-lankan-food-recognition/
-├── model/                    # Model architecture & training
-│   ├── architecture.py       # PrototypicalNetwork class
-│   ├── train.py             # Training script
-│   ├── evaluate.py          # Evaluation utilities
-│   └── export_tflite.py     # Mobile model export
 │
-├── mobile_app/              # Flutter mobile application
-│   ├── lib/                 # Dart source code
-│   ├── assets/              # TFLite model files
-│   └── README.md            # Mobile setup guide
+├── notebooks/                    # Colab training notebooks
+│   ├── V1_SriLankanFoodRecognition.ipynb     # Full training pipeline
+│   ├── Comprehensive_Baseline_Comparison.ipynb  # Baseline evaluation
+│   ├── V1_Test_ranasinghehashini.ipynb        # Model export & TFLite
+│   ├── V1_HuggingFace.ipynb                  # HuggingFace upload
+│   └── Sri_Lankan_Food_Trainer_Tutorial_Enhanced.ipynb  # Extension tutorial
 │
-├── srilankan-food-trainer/  # Python extension library
-│   ├── src/                 # Library source code
-│   ├── setup.py             # PyPI package config
-│   └── README.md            # Library documentation
+├── mobile_app/                   # Flutter mobile application
+│   ├── lib/                      # Dart source code
+│   └── assets/                   # TFLite model files
+│       ├── model.tflite          # (492.9 KB)
+│       ├── prototypes.json       # (25.9 KB, 8 class prototypes)
+│       └── labels.txt            # (8 class labels)
 │
-├── notebooks/               # Jupyter/Colab notebooks
-│   ├── 01_Training.ipynb    # Full training pipeline
-│   ├── 02_Evaluation.ipynb  # Results visualization
-│   ├── 03_TFLite_Export.ipynb # Mobile export
-│   └── 04_Extension_Demo.ipynb # Extension tutorial
+├── srilankan-food-trainer/       # Python extension library (PyPI)
+│   └── Sri_Lankan_Food_Trainer_Tutorial_Enhanced.ipynb
 │
-├── results/                 # Training outputs
-│   ├── metrics/             # JSON metrics
-│   └── plots/               # Visualizations
-│
-├── docs/                    # Documentation
-│   ├── SETUP.md             # Environment setup
-│   ├── TRAINING.md          # Training guide
-│   └── MOBILE_DEPLOYMENT.md # Mobile deployment
-│
-└── dataset/                 # Dataset info (not images)
-    └── README.md            # Dataset description
+└── dataset/                      # Dataset info
+    └── README.md
 ```
 
+---
 
 ## 📦 Dataset
 
-### Dataset Structure
-- **9 Classes**: 3 vegetables × 3 cooking states each
-- **Training**: ~50-100 images per class
-- **Sources**: Controlled captures + web scraping
-- **Augmentation**: Rotation, flip, brightness, color jitter
+### Summary
+- **8 Classes** across 3 vegetables and authentic cooking states
+- **331 total images** (230 train / 48 val / 53 test)
+- **~39–48 images per class**
+- **Sources**: 40% controlled captures + 60% web scraping
 
-### Classes Included
-1. `carrot_raw` - Fresh carrot slices
-2. `carrot_red_curry` - Carrot in turmeric curry
-3. `carrot_white_curry` - Carrot in coconut milk curry
-4. `greenbeans_raw` - Fresh green beans
-5. `greenbeans_tempered` - Stir-fried green beans
-6. `greenbeans_white_curry` - Green beans in coconut curry
-7. `pumpkin_raw` - Fresh pumpkin cubes
-8. `pumpkin_red_curry` - Pumpkin in turmeric curry
-9. `pumpkin_white_curry` - Pumpkin in coconut curry
+> ⚠️ Note: Not every vegetable appears in all cooking states. This reflects authentic Sri Lankan culinary practice — for example, carrot appears in raw and white curry but not red curry in this dataset.
 
+### Classes
 
----
-
-
-## 🔬 Usage Examples
-
-### Training from Scratch
-
-```python
-from model.train import train_model
-from model.architecture import PrototypicalNetwork
-
-# Initialize model
-model = PrototypicalNetwork(embedding_dim=128)
-
-# Train
-results = train_model(
-    model=model,
-    train_dir="dataset/train",
-    val_dir="dataset/val",
-    epochs=50,
-    batch_size=32,
-    learning_rate=0.001
-)
-
-# Save
-torch.save(model.state_dict(), "my_model.pth")
-```
-
-### Evaluation
-
-```python
-from model.evaluate import evaluate_model
-
-# Load model
-model = load_model("best_model.pth")
-
-# Evaluate
-metrics = evaluate_model(
-    model=model,
-    test_dir="dataset/test",
-    save_plots=True,
-    output_dir="results/"
-)
-
-print(f"Test Accuracy: {metrics['accuracy']:.2%}")
-```
-
-### TFLite Export for Mobile
-
-```python
-from model.export_tflite import export_to_tflite
-
-# Export
-export_to_tflite(
-    model_path="best_model.pth",
-    output_dir="mobile_app/assets/",
-    quantize=True  # Reduce model size
-)
-
-# Generates: model.tflite, prototypes.json, labels.txt
-```
+| # | Class | Description |
+|---|-------|-------------|
+| 1 | `carrot_raw` | Fresh carrot — bright orange |
+| 2 | `carrot_white_curry` | Carrot in coconut milk curry — cream coloured |
+| 3 | `greenbeans_raw` | Fresh green beans — vibrant green |
+| 4 | `greenbeans_tempered` | Stir-fried green beans — browned surfaces |
+| 5 | `greenbeans_white_curry` | Green beans in coconut curry |
+| 6 | `pumpkin_raw` | Fresh pumpkin — bright orange |
+| 7 | `pumpkin_red_curry` | Pumpkin in turmeric curry — yellow-orange |
+| 8 | `pumpkin_white_curry` | Pumpkin in coconut curry — cream coloured |
 
 ---
 
-### Download APK
-📥 [Latest Release (v1.0.0)](https://github.com/yourusername/sri-lankan-food-recognition/releases)
+## 🔗 Links
+
+- 🤗 [Pre-trained Model on Hugging Face](https://huggingface.co/ranasinghehashini/srilankan-food-recognition)
+- 📦 [Python Library on PyPI](https://pypi.org/project/srilankan-food-trainer/)
+- 📊 [Dataset on Kaggle](https://www.kaggle.com/datasets/ranasinghehashini/sri-lankan-food-recognition-dataset/data)
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Areas for improvement:
-
-- 🍅 Add more vegetables (tomato, cabbage, brinjal, etc.)
-- 🍛 Add more cooking states (boiled, steamed, fried)
-- 🌍 Extend to other South Asian cuisines
-
-
-
-## 🔗 Links
-
-- 🤗 [Pre-trained Model](https://huggingface.co/ranasinghehashini/srilankan-food-recognition)
-- 📦 [Python Library](https://pypi.org/project/srilankan-food-trainer/)
-- 📱 [Mobile App Releases](https://github.com/yourusername/sri-lankan-food-recognition/releases)
-- 📊 [Dataset](https://drive.google.com/your-link-here)
-- 📖 [Documentation](https://github.com/yourusername/sri-lankan-food-recognition/tree/main/docs)
+Contributions are welcome! Planned future additions:
+- 🍆 More vegetables (eggplant/brinjal, bitter gourd, drumstick, okra)
+- 🍛 More cooking states (mallum, boiled, steamed)
+- 🌍 Extension to other South Asian cuisines
 
 ---
+
+<p align="center">
+🍛 Preserving Sri Lankan culinary heritage through AI 🇱🇰
+</p>
