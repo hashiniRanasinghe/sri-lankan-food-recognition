@@ -7,7 +7,6 @@ setup(
     name="srilankan-food-trainer",
     version="0.2.1",
     author="Hashini Ranasinghe",
-    author_email="your.email@example.com",
     description="Easy-to-use library for extending Sri Lankan food recognition models",
     long_description=long_description,
     long_description_content_type="text/markdown",
