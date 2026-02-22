@@ -8,6 +8,8 @@ class ResultCard extends StatelessWidget {
   final double confidence;
   final double? processingTime;
   final Map<String, double>? allScores;
+  /// When false, the image was below confidence threshold (e.g. not food).
+  final bool isRecognizedAsFood;
 
   const ResultCard({
     Key? key,
@@ -15,6 +17,7 @@ class ResultCard extends StatelessWidget {
     required this.confidence,
     this.processingTime,
     this.allScores,
+    this.isRecognizedAsFood = true,
   }) : super(key: key);
 
   @override
@@ -58,44 +61,87 @@ class ResultCard extends StatelessWidget {
             
             const SizedBox(height: 20),
             
-            // Main prediction
+            // Main prediction or "not recognized" message
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.3),
+                color: isRecognizedAsFood
+                    ? cs.primaryContainer.withValues(alpha: 0.3)
+                    : cs.errorContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 border: Border.all(
-                  color: cs.primary.withValues(alpha: 0.3),
+                  color: isRecognizedAsFood
+                      ? cs.primary.withValues(alpha: 0.3)
+                      : cs.error.withValues(alpha: 0.3),
                 ),
               ),
               child: Column(
                 children: [
-                  Text(
-                    prediction,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: cs.primary,
+                  if (isRecognizedAsFood) ...[
+                    Text(
+                      prediction,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: cs.primary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${(confidence * 100).toStringAsFixed(1)}% confidence',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(confidence * 100).toStringAsFixed(1)}% confidence',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    Icon(
+                      Icons.help_outline_rounded,
+                      size: 40,
+                      color: cs.error,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Not recognized as food',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: cs.error,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Please try a clear photo of Sri Lankan food',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Best match was "$prediction" (${(confidence * 100).toStringAsFixed(0)}% – too low to show)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),
             
-            // Confidence indicator
-            const SizedBox(height: 16),
-            _buildConfidenceBar(confidence, cs),
+            // Confidence indicator (only when recognized)
+            if (isRecognizedAsFood) ...[
+              const SizedBox(height: 16),
+              _buildConfidenceBar(confidence, cs),
+            ],
             
             // Processing time
             if (processingTime != null) ...[
@@ -119,8 +165,8 @@ class ResultCard extends StatelessWidget {
               ),
             ],
             
-            // Top predictions
-            if (allScores != null && allScores!.length > 1) ...[
+            // Top predictions (only when recognized)
+            if (isRecognizedAsFood && allScores != null && allScores!.length > 1) ...[
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 12),

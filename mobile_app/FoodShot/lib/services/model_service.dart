@@ -51,6 +51,7 @@ class ModelService {
       'all_scores': {AppConstants.foodClasses.first: 0.75},
       'processing_time': 0.1,
       'is_demo': true, // Flag for demo mode
+      'is_recognized_as_food': true,
     };
   }
 

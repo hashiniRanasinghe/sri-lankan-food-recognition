@@ -164,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   confidence: _result!['confidence'] as double,
                   processingTime: _result!['processing_time'] as double,
                   allScores: _result!['all_scores'] as Map<String, double>?,
+                  isRecognizedAsFood: _result!['is_recognized_as_food'] as bool? ?? true,
                 ),
             ],
           ),

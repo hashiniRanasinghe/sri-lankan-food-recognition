@@ -13,23 +13,21 @@ class FoodRecognitionService {
   Map<String, List<double>>? _prototypes;
   List<String>? _labels;
   Map<String, dynamic>? _modelInfo;
-
   bool _isInitialized = false;
 
-  // Normalization constants
+  // ImageNet normalization
   static const List<double> MEAN = [0.485, 0.456, 0.406];
-  static const List<double> STD = [0.229, 0.224, 0.225];
-  static const int INPUT_SIZE = 224;
+  static const List<double> STD  = [0.229, 0.224, 0.225];
+  static const int INPUT_SIZE    = 224;
   static const int EMBEDDING_DIM = 128;
 
-Future<void> initialize() async
-  {
-    
+  /// Below this confidence we treat the image as "not recognized as food"
+  /// (e.g. non-food images like people, objects) to avoid wrong labels.
+  static const double confidenceThreshold = 0.80;
 
+  Future<void> initialize() async {
     if (_isInitialized) return;
-
     try {
-      // Load model with options for better performance
       final options = InterpreterOptions()..threads = 4;
       _interpreter = await Interpreter.fromAsset(
         'assets/model.tflite',
@@ -37,18 +35,15 @@ Future<void> initialize() async
       );
       print('✅ Model loaded');
 
-      // Load prototypes
-      final prototypesJson = await rootBundle.loadString(
-        'assets/prototypes.json',
-      );
+      final prototypesJson =
+          await rootBundle.loadString('assets/prototypes.json');
       final prototypesData =
           json.decode(prototypesJson) as Map<String, dynamic>;
       _prototypes = prototypesData.map(
-        (key, value) => MapEntry(key, List<double>.from(value)),
+        (key, value) => MapEntry(key, List<double>.from(value as List)),
       );
       print('✅ Prototypes loaded: ${_prototypes!.length} classes');
 
-      // Load labels
       final labelsText = await rootBundle.loadString('assets/labels.txt');
       _labels = labelsText
           .split('\n')
@@ -56,9 +51,9 @@ Future<void> initialize() async
           .toList();
       print('✅ Labels loaded: ${_labels!.length} classes');
 
-      // Load model info (optional - skip if not critical)
       try {
-        final infoJson = await rootBundle.loadString('assets/model_info.json');
+        final infoJson =
+            await rootBundle.loadString('assets/model_info.json');
         _modelInfo = json.decode(infoJson);
         print('✅ Model info loaded');
       } catch (e) {
@@ -68,59 +63,55 @@ Future<void> initialize() async
       _isInitialized = true;
       print('🎉 Food Recognition Service initialized!');
     } catch (e) {
-      print('❌ Error initializing service: $e');
+      print('❌ Initialization error: $e');
       rethrow;
     }
   }
 
   Future<Map<String, dynamic>> recognizeFood(File imageFile) async {
-    if (!_isInitialized) {
-      await initialize();
-    }
+    if (!_isInitialized) await initialize();
 
-    try {
-      final startTime = DateTime.now();
+    final startTime = DateTime.now();
 
-      // 1. Preprocess image efficiently
-      final inputTensor = await _preprocessImageOptimized(imageFile);
+    // Step 1: Preprocess → [1, 224, 224, 3] NHWC nested list (required by TFLite)
+    final inputTensor = await _preprocessImage(imageFile);
 
-      // 2. Run inference
-      final outputBuffer = Float32List(EMBEDDING_DIM);
-      _interpreter!.run(inputTensor, outputBuffer.buffer.asFloat32List());
+    // Step 2: Output buffer [1, 128]
+    final output =
+        List.generate(1, (_) => List.filled(EMBEDDING_DIM, 0.0));
 
-      // 3. Normalize embedding
-      final embedding = _l2Normalize(outputBuffer);
+    // Step 3: Run inference
+    _interpreter!.run(inputTensor, output);
 
-      // 4. Compare with prototypes
-      final result = _compareWithPrototypes(embedding);
+    // Step 4: L2-normalise embedding
+    final rawEmbedding =
+        Float32List.fromList(output[0].map((e) => e.toDouble()).toList());
+    final embedding = _l2Normalize(rawEmbedding);
 
-      final processingTime = DateTime.now()
-          .difference(startTime)
-          .inMilliseconds;
+    // Step 5: Nearest prototype → softmax confidence
+    final result = _compareWithPrototypes(embedding);
 
-      return {
-        'class': result['class'],
-        'confidence': result['confidence'],
-        'all_scores': result['all_scores'],
-        'processing_time': processingTime / 1000.0,
-      };
-    } catch (e) {
-      print('❌ Recognition error: $e');
-      rethrow;
-    }
+    final processingMs =
+        DateTime.now().difference(startTime).inMilliseconds;
+
+    final confidence = result['confidence'] as double;
+    return {
+      'class': result['class'],
+      'confidence': confidence,
+      'all_scores': result['all_scores'],
+      'processing_time': processingMs / 1000.0,
+      'is_recognized_as_food': confidence >= confidenceThreshold,
+    };
   }
 
-  // OPTIMIZED: Use Float32List directly instead of nested lists
-  Future<Float32List> _preprocessImageOptimized(File imageFile) async {
-    // Read and decode image
+  /// Builds a [1][H][W][3] nested-list tensor in NHWC format.
+  /// TFLite requires this shape — a flat Float32List produces wrong results.
+  Future<List<List<List<List<double>>>>> _preprocessImage(
+      File imageFile) async {
     final bytes = await imageFile.readAsBytes();
-    img.Image? image = img.decodeImage(bytes);
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception('Failed to decode image');
 
-    if (image == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    // Resize to 224x224
     final resized = img.copyResize(
       image,
       width: INPUT_SIZE,
@@ -128,78 +119,65 @@ Future<void> initialize() async
       interpolation: img.Interpolation.linear,
     );
 
-    // Create flat Float32List (224 * 224 * 3 = 150,528 elements)
-    final inputSize = INPUT_SIZE * INPUT_SIZE * 3;
-    final inputTensor = Float32List(inputSize);
-
-    var pixelIndex = 0;
-    for (var y = 0; y < INPUT_SIZE; y++) {
-      for (var x = 0; x < INPUT_SIZE; x++) {
-        final pixel = resized.getPixel(x, y);
-
-        // Extract and normalize RGB
-        final r = pixel.r / 255.0;
-        final g = pixel.g / 255.0;
-        final b = pixel.b / 255.0;
-
-        // Apply ImageNet normalization
-        inputTensor[pixelIndex++] = (r - MEAN[0]) / STD[0];
-        inputTensor[pixelIndex++] = (g - MEAN[1]) / STD[1];
-        inputTensor[pixelIndex++] = (b - MEAN[2]) / STD[2];
-      }
-    }
-
-    return inputTensor;
+    return List.generate(
+      1,
+      (_) => List.generate(
+        INPUT_SIZE,
+        (h) => List.generate(
+          INPUT_SIZE,
+          (w) {
+            final pixel = resized.getPixel(w, h);
+            return [
+              (pixel.r / 255.0 - MEAN[0]) / STD[0],
+              (pixel.g / 255.0 - MEAN[1]) / STD[1],
+              (pixel.b / 255.0 - MEAN[2]) / STD[2],
+            ];
+          },
+        ),
+      ),
+    );
   }
 
   Float32List _l2Normalize(Float32List vector) {
-    double sumSquares = 0.0;
-    for (var v in vector) {
-      sumSquares += v * v;
-    }
-    final norm = sqrt(sumSquares);
-
+    double sumSq = 0.0;
+    for (final v in vector) sumSq += v * v;
+    final norm = sqrt(sumSq);
     if (norm == 0) return vector;
-
-    final normalized = Float32List(vector.length);
-    for (int i = 0; i < vector.length; i++) {
-      normalized[i] = vector[i] / norm;
-    }
-    return normalized;
+    return Float32List.fromList(vector.map((v) => v / norm).toList());
   }
 
+  /// Cosine similarity of two L2-normalised vectors = dot product.
+  /// Softmax (scaled ×10) converts raw similarities to calibrated confidence.
   Map<String, dynamic> _compareWithPrototypes(Float32List embedding) {
-    final distances = <String, double>{};
-
-    // Calculate cosine similarity (dot product since normalized)
-    for (var entry in _prototypes!.entries) {
-      final prototype = entry.value;
-      double similarity = 0.0;
-
+    final similarities = <String, double>{};
+    for (final entry in _prototypes!.entries) {
+      double dot = 0.0;
+      final proto = entry.value;
       for (int i = 0; i < embedding.length; i++) {
-        similarity += embedding[i] * prototype[i];
+        dot += embedding[i] * proto[i];
       }
-
-      distances[entry.key] = similarity;
+      similarities[entry.key] = dot;
     }
 
-    // Sort by similarity (descending)
-    final sortedEntries = distances.entries.toList()
+    // Numerically stable softmax with ×10 scale for sharper distribution
+    final maxSim = similarities.values.reduce(max);
+    final expMap =
+        similarities.map((k, v) => MapEntry(k, exp((v - maxSim) * 10)));
+    final expSum = expMap.values.reduce((a, b) => a + b);
+    final confidenceMap =
+        expMap.map((k, v) => MapEntry(k, v / expSum));
+
+    final sorted = confidenceMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final bestMatch = sortedEntries.first;
-
-    // Convert similarity [-1, 1] to confidence [0, 1]
-    final confidence = (bestMatch.value + 1) / 2;
-
     return {
-      'class': bestMatch.key,
-      'confidence': confidence,
-      'all_scores': Map.fromEntries(
-        sortedEntries.take(5).map((e) => MapEntry(e.key, (e.value + 1) / 2)),
-      ),
+      'class': sorted.first.key,
+      'confidence': sorted.first.value,
+      'all_scores': Map<String, double>.fromEntries(sorted.take(5)),
     };
   }
+
+  bool get isInitialized => _isInitialized;
 
   void dispose() {
     _interpreter?.close();
