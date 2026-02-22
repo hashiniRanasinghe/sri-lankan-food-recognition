@@ -21,9 +21,14 @@ class FoodRecognitionService {
   static const int INPUT_SIZE    = 224;
   static const int EMBEDDING_DIM = 128;
 
-  /// Below this confidence we treat the image as "not recognized as food"
-  /// (e.g. non-food images like people, objects) to avoid wrong labels.
-  static const double confidenceThreshold = 0.80;
+  /// Minimum softmax confidence to accept a prediction as food.
+  /// Anything below this shows "Not recognized as food".
+  static const double confidenceThreshold = 0.60;
+
+  /// Maximum Shannon entropy (in nats) allowed for a valid food prediction.
+  /// When all classes score similarly the distribution is flat – typical of
+  /// a non-food image like a selfie. We reject those too.
+  static const double maxEntropyThreshold = 1.8;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -95,12 +100,24 @@ class FoodRecognitionService {
         DateTime.now().difference(startTime).inMilliseconds;
 
     final confidence = result['confidence'] as double;
+    final allScores = result['all_scores'] as Map<String, double>;
+
+    // Compute Shannon entropy over the full softmax distribution.
+    // A flat distribution (e.g. someone's face) has high entropy → reject.
+    double entropy = 0.0;
+    for (final p in (result['full_scores'] as Map<String, double>).values) {
+      if (p > 0) entropy -= p * log(p);
+    }
+
+    final isFood = confidence >= confidenceThreshold && entropy <= maxEntropyThreshold;
+
     return {
       'class': result['class'],
       'confidence': confidence,
-      'all_scores': result['all_scores'],
+      'all_scores': allScores,
       'processing_time': processingMs / 1000.0,
-      'is_recognized_as_food': confidence >= confidenceThreshold,
+      'is_recognized_as_food': isFood,
+      'entropy': entropy,
     };
   }
 
@@ -174,6 +191,8 @@ class FoodRecognitionService {
       'class': sorted.first.key,
       'confidence': sorted.first.value,
       'all_scores': Map<String, double>.fromEntries(sorted.take(5)),
+      // Full distribution needed for entropy-based rejection
+      'full_scores': Map<String, double>.fromEntries(sorted),
     };
   }
 

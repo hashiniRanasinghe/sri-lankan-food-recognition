@@ -45,13 +45,15 @@ class ModelService {
   }
 
   Map<String, dynamic> _getDemoResult() {
+    // Demo result uses low confidence so it is correctly flagged as
+    // "not recognized" rather than confidently showing a wrong label.
     return {
       'class': AppConstants.foodClasses.first,
-      'confidence': 0.75,
-      'all_scores': {AppConstants.foodClasses.first: 0.75},
+      'confidence': 0.30,
+      'all_scores': {AppConstants.foodClasses.first: 0.30},
       'processing_time': 0.1,
-      'is_demo': true, // Flag for demo mode
-      'is_recognized_as_food': true,
+      'is_demo': true,
+      'is_recognized_as_food': false,
     };
   }
 

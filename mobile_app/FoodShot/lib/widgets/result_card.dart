@@ -99,13 +99,13 @@ class ResultCard extends StatelessWidget {
                     ),
                   ] else ...[
                     Icon(
-                      Icons.help_outline_rounded,
-                      size: 40,
+                      Icons.no_food_rounded,
+                      size: 48,
                       color: cs.error,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Text(
-                      'Not recognized as food',
+                      'Not a recognized food',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -113,24 +113,32 @@ class ResultCard extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
-                      'Please try a clear photo of Sri Lankan food',
+                      'This doesn\'t look like Sri Lankan food.\nPlease take a clear photo of:',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: cs.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Best match was "$prediction" (${(confidence * 100).toStringAsFixed(0)}% – too low to show)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        'Carrot · Green Beans · Pumpkin\n(raw, white curry, red curry or tempered)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
                 ],
