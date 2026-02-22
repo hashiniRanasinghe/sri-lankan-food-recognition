@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="srilankan-food-trainer",
-    version="0.1.0",
+    version="0.2.1",
     author="Hashini Ranasinghe",
     author_email="your.email@example.com",
     description="Easy-to-use library for extending Sri Lankan food recognition models",
