@@ -149,11 +149,6 @@ Want to contribute to the dataset? Here's how:
 
 ---
 
-## 📞 Contact
-
-Questions about the dataset?
-- **GitHub Issues**: [Report issues](https://github.com/yourusername/sri-lankan-food-recognition/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/sri-lankan-food-recognition/discussions)
 
 ---
 
