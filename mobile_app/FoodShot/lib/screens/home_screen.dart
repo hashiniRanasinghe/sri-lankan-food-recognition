@@ -71,9 +71,13 @@ class _HomeScreenState extends State<HomeScreen> {
           _isProcessing = false;
         });
 
-        // Show demo mode warning if applicable
-        if (result['is_demo'] == true) {
-          _showMessage('Demo mode - using sample prediction', isError: false);
+        // Show source / error info as a snackbar
+        final source = result['source'] as String?;
+        final error = result['error'] as String?;
+        if (error != null && error.isNotEmpty) {
+          _showMessage(error, isError: true);
+        } else if (source == 'huggingface_api') {
+          _showMessage('Online prediction via Hugging Face', isError: false);
         }
       }
     } catch (e) {
@@ -165,6 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   processingTime: _result!['processing_time'] as double,
                   allScores: _result!['all_scores'] as Map<String, double>?,
                   isRecognizedAsFood: _result!['is_recognized_as_food'] as bool? ?? true,
+                  errorMessage: _result!['error'] as String?,
+                  source: _result!['source'] as String?,
                 ),
             ],
           ),

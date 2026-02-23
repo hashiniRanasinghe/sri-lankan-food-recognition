@@ -1,4 +1,4 @@
-// lib/widgets/result_card.dart (NEW - COMPLETE IMPLEMENTATION)
+// lib/widgets/result_card.dart
 
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
@@ -8,8 +8,11 @@ class ResultCard extends StatelessWidget {
   final double confidence;
   final double? processingTime;
   final Map<String, double>? allScores;
-  /// When false, the image was below confidence threshold (e.g. not food).
   final bool isRecognizedAsFood;
+  /// Non-null when inference failed entirely (e.g. no internet + no TFLite)
+  final String? errorMessage;
+  /// 'tflite', 'huggingface_api', or 'error'
+  final String? source;
 
   const ResultCard({
     Key? key,
@@ -18,6 +21,8 @@ class ResultCard extends StatelessWidget {
     this.processingTime,
     this.allScores,
     this.isRecognizedAsFood = true,
+    this.errorMessage,
+    this.source,
   }) : super(key: key);
 
   @override
@@ -56,6 +61,33 @@ class ResultCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Badge showing which backend answered
+                if (source != null && source != 'error')
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: source == 'huggingface_api'
+                          ? Colors.orange.withValues(alpha: 0.12)
+                          : Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: source == 'huggingface_api'
+                            ? Colors.orange.withValues(alpha: 0.4)
+                            : Colors.green.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Text(
+                      source == 'huggingface_api' ? '☁ Online' : '📱 On-device',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: source == 'huggingface_api'
+                            ? Colors.orange.shade800
+                            : Colors.green.shade800,
+                      ),
+                    ),
+                  ),
               ],
             ),
             
@@ -80,7 +112,7 @@ class ResultCard extends StatelessWidget {
                 children: [
                   if (isRecognizedAsFood) ...[
                     Text(
-                      prediction,
+                      _formatFoodName(prediction),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -88,24 +120,38 @@ class ResultCard extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatCookingStyle(prediction),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       '${(confidence * 100).toStringAsFixed(1)}% confidence',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ] else ...[
                     Icon(
-                      Icons.no_food_rounded,
+                      source == 'error'
+                          ? Icons.wifi_off_rounded
+                          : Icons.no_food_rounded,
                       size: 48,
                       color: cs.error,
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Not a recognized food',
+                      source == 'error'
+                          ? 'Could not get a prediction'
+                          : 'Not a recognized food',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -114,32 +160,44 @@ class ResultCard extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'This doesn\'t look like Sri Lankan food.\nPlease take a clear photo of:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Carrot · Green Beans · Pumpkin\n(raw, white curry, red curry or tempered)',
+                    // Show specific error message if inference failed
+                    if (source == 'error' && errorMessage != null) ...[
+                      Text(
+                        errorMessage!,
                         style: TextStyle(
                           fontSize: 13,
-                          color: cs.primary,
-                          fontWeight: FontWeight.w600,
+                          color: cs.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ),
+                    ] else ...[
+                      Text(
+                        'This doesn\'t look like Sri Lankan food.\nPlease take a clear photo of:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Carrot · Green Beans · Pumpkin\n(raw, white curry, red curry or tempered)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),
@@ -193,7 +251,7 @@ class ResultCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          entry.key,
+                          '${_formatFoodName(entry.key)} ${_formatCookingStyle(entry.key)}',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),
@@ -262,5 +320,19 @@ class ResultCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Converts "carrot_raw" → "Carrot" and "pumpkin_red_curry" → "Pumpkin"
+  String _formatFoodName(String label) {
+    final parts = label.split('_');
+    if (parts.isEmpty) return label;
+    return parts.first[0].toUpperCase() + parts.first.substring(1);
+  }
+
+  /// Converts "carrot_raw" → "RAW" and "pumpkin_red_curry" → "RED CURRY"
+  String _formatCookingStyle(String label) {
+    final parts = label.split('_');
+    if (parts.length <= 1) return '';
+    return parts.sublist(1).join(' ').toUpperCase();
   }
 }
