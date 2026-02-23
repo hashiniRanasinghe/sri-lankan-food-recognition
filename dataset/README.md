@@ -150,8 +150,6 @@ Want to contribute to the dataset? Here's how:
 ---
 
 
----
-
 <p align="center">
 🍛 Preserving Sri Lankan culinary heritage through AI 🇱🇰
 </p>
