@@ -29,7 +29,7 @@ Traditional food recognition systems fail because they rely on color, texture, a
 - **8 Vegetable-State Combinations**: Carrot (Raw, White Curry), Green Beans (Raw, Tempered, White Curry), Pumpkin (Raw, Red Curry, White Curry)
 - **90.25% Best Validation Accuracy** / **84.91% Full Test Accuracy** / **87.75% Few-Shot Test Accuracy**
 - **Transformation-Aware Learning**: Learns features that remain consistent across cooking transformations
-- **Few-Shot Learning**: Requires only 30–50 images per class
+- **Few-Shot Learning**: Requires only 20 images per class (30–50 recommended for reliable performance)
 
 ### 📱 Mobile App
 - **On-Device Inference**: Works fully offline, <100ms predictions
