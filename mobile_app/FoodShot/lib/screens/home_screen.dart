@@ -15,13 +15,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  File? _image;
-  Map<String, dynamic>? _result;
-  bool _isProcessing = false;
-  bool _modelLoaded = false;
+  File?                  _image;
+  Map<String, dynamic>?  _result;
+  bool                   _isProcessing = false;
+  bool                   _modelLoaded  = false;
+  String?                _modelError;
 
-  final ImagePicker _picker = ImagePicker();
+  final ImagePicker  _picker       = ImagePicker();
   final ModelService _modelService = ModelService();
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -29,103 +32,101 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeModel();
   }
 
+  @override
+  void dispose() {
+    _modelService.dispose();
+    super.dispose();
+  }
+
+  // ── Model init ─────────────────────────────────────────────────────────────
+
   Future<void> _initializeModel() async {
     final success = await _modelService.loadModel();
-    if (mounted) {
-      setState(() {
-        _modelLoaded = success;
-      });
+    if (!mounted) return;
+    setState(() {
+      _modelLoaded = success;
+      _modelError  = success ? null : _modelService.loadError;
+    });
 
-      if (success) {
-        _showMessage('Model loaded successfully!', isError: false);
-      } else {
-        _showMessage('Running in demo mode', isError: false);
-      }
+    if (!success) {
+      _showSnack(
+        'Model failed to load — check that assets/model.tflite is in pubspec.yaml',
+        isError: true,
+        duration: const Duration(seconds: 6),
+      );
     }
   }
+
+  // ── Image picking & inference ──────────────────────────────────────────────
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: source,
-        maxWidth: 1024, // Reduced from 800 for better quality
-        maxHeight: 1024,
-        imageQuality: 90, // Increased quality
+      final XFile? picked = await _picker.pickImage(
+        source:       source,
+        maxWidth:     1024,
+        maxHeight:    1024,
+        imageQuality: 90,
       );
+      if (picked == null) return;
 
-      if (pickedFile == null) return;
-
-      // Show loading immediately
       setState(() {
-        _image = File(pickedFile.path);
-        _result = null;
+        _image        = File(picked.path);
+        _result       = null;
         _isProcessing = true;
       });
 
-      // Run inference
       final result = await _modelService.recognizeFood(_image!);
 
-      if (mounted) {
-        setState(() {
-          _result = result;
-          _isProcessing = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        _result       = result;
+        _isProcessing = false;
+      });
 
-        // Show source / error info as a snackbar
-        final source = result['source'] as String?;
-        final error = result['error'] as String?;
-        if (error != null && error.isNotEmpty) {
-          _showMessage(error, isError: true);
-        } else if (source == 'huggingface_api') {
-          _showMessage('Online prediction via Hugging Face', isError: false);
-        }
+      // Surface inference errors as a snackbar too
+      final err = result['error'] as String?;
+      if (err != null && err.isNotEmpty) {
+        _showSnack(err, isError: true);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-        _showMessage('Error: ${e.toString()}', isError: true);
-      }
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showSnack('Unexpected error: $e', isError: true);
     }
   }
 
-  void _showMessage(String message, {required bool isError}) {
+  void _resetImage() => setState(() { _image = null; _result = null; });
+
+  // ── Snackbar ───────────────────────────────────────────────────────────────
+
+  void _showSnack(String message,
+      {required bool isError, Duration? duration}) {
     if (!mounted) return;
-
     final cs = Theme.of(context).colorScheme;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? cs.error : cs.primary,
-        duration: Duration(seconds: isError ? 3 : 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:         Text(message),
+      backgroundColor: isError ? cs.error : cs.primary,
+      duration:        duration ?? Duration(seconds: isError ? 4 : 2),
+      behavior:        SnackBarBehavior.floating,
+    ));
   }
 
-  void _resetImage() {
-    setState(() {
-      _image = null;
-      _result = null;
-    });
-  }
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppConstants.appName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.code),
+            icon:    const Icon(Icons.code),
             onPressed: () => Navigator.pushNamed(context, '/developer'),
             tooltip: 'Developer Guide',
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon:    const Icon(Icons.info_outline),
             onPressed: () => Navigator.pushNamed(context, '/about'),
             tooltip: 'About',
           ),
@@ -139,38 +140,33 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _buildHeroHeader(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
-              // _buildStatusIndicator(),
-              // const SizedBox(height: AppConstants.sectionSpacing),
-              _buildInstructions(),
+              _buildModelStatusBadge(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
-              _buildImageDisplay(),
+              _buildImageDisplay(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
               _buildActionButtons(),
               const SizedBox(height: AppConstants.sectionSpacing),
 
-              // Results section
               if (_isProcessing)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Analyzing image...'),
-                      ],
-                    ),
+                    padding: EdgeInsets.all(32),
+                    child: Column(children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Analysing image…'),
+                    ]),
                   ),
                 )
               else if (_result != null)
                 ResultCard(
-                  prediction: _result!['class'] as String,
-                  confidence: _result!['confidence'] as double,
-                  processingTime: _result!['processing_time'] as double,
-                  allScores: _result!['all_scores'] as Map<String, double>?,
-                  isRecognizedAsFood: _result!['is_recognized_as_food'] as bool? ?? true,
-                  errorMessage: _result!['error'] as String?,
-                  source: _result!['source'] as String?,
+                  prediction:          _result!['class']                as String,
+                  confidence:          _result!['confidence']           as double,
+                  processingTime:      _result!['processing_time']      as double?,
+                  allScores:           _result!['all_scores']           as Map<String, double>?,
+                  isRecognizedAsFood:  _result!['is_recognized_as_food'] as bool? ?? false,
+                  errorMessage:        _result!['error']                as String?,
+                  source:              _result!['source']               as String?,
                 ),
             ],
           ),
@@ -179,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ... (keep existing widget methods but add null safety)
+  // ── Sub-widgets ────────────────────────────────────────────────────────────
 
   Widget _buildHeroHeader(ColorScheme cs) {
     return Container(
@@ -188,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          end:   Alignment.bottomRight,
           colors: [
             cs.primary.withValues(alpha: 0.10),
             AppConstants.accentColor.withValues(alpha: 0.08),
@@ -196,192 +192,138 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         border: Border.all(color: AppConstants.borderColor),
       ),
-      child: Row(
-        children: [
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            ),
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              color: cs.primary,
-              size: 24,
-            ),
+      child: Row(children: [
+        Container(
+          height: 44,
+          width:  44,
+          decoration: BoxDecoration(
+            color:        cs.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppConstants.appSubtitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Snap a photo and get instant predictions',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget _buildStatusIndicator() {
-  //   final cs = Theme.of(context).colorScheme;
-  //   final isReady = _modelLoaded && !_isProcessing;
-  //   final bg = isReady ? Colors.green : cs.tertiary;
-  //   final fg = isReady ? Colors.green.shade900 : cs.onSurface;
-
-  //   // return Center(
-  //   //   child: Container(
-  //   //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  //   //     decoration: BoxDecoration(
-  //   //       color: bg.withValues(alpha: 0.10),
-  //   //       borderRadius: BorderRadius.circular(999),
-  //   //       border: Border.all(color: bg.withValues(alpha: 0.25)),
-  //   //     ),
-  //   //     child: Row(
-  //   //       mainAxisSize: MainAxisSize.min,
-  //   //       children: [
-  //   //         Icon(
-  //   //           isReady
-  //   //               ? Icons.check_circle_rounded
-  //   //               : Icons.hourglass_empty_rounded,
-  //   //           color: bg,
-  //   //           size: 16,
-  //   //         ),
-  //   //         const SizedBox(width: 8),
-  //   //         Text(
-  //   //           isReady
-  //   //               ? 'Model Ready'
-  //   //               : (_isProcessing ? 'Processing...' : 'Demo Mode'),
-  //   //           style: TextStyle(
-  //   //             color: fg,
-  //   //             fontWeight: FontWeight.w700,
-  //   //             fontSize: 13,
-  //   //           ),
-  //   //         ),
-  //   //       ],
-  //   //     ),
-  //   //   ),
-  //   // );
-  // }
-
-  Widget _buildInstructions() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Icon(
-              Icons.restaurant_rounded,
-              size: 40,
-              color: AppConstants.primaryColor,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Recognize Sri Lankan Food',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Take a photo or choose from your gallery',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          child: Icon(Icons.auto_awesome_rounded, color: cs.primary, size: 24),
         ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppConstants.appSubtitle,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color:       cs.onSurface,
+                  fontWeight:  FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Snap a photo and get instant predictions',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  /// Small pill that shows whether TFLite loaded successfully.
+  /// Makes it easy to spot asset/model problems during development.
+  Widget _buildModelStatusBadge(ColorScheme cs) {
+    final ready  = _modelLoaded && !_isProcessing;
+    final color  = ready ? Colors.green : Colors.orange;
+    final icon   = ready
+        ? Icons.check_circle_rounded
+        : (_modelError != null ? Icons.error_rounded : Icons.hourglass_top_rounded);
+    final label  = ready
+        ? '📱 On-device model ready'
+        : (_modelError != null ? '⚠ Model not loaded' : 'Loading model…');
+
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color:        color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border:       Border.all(color: color.withValues(alpha: 0.30)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color:       color.shade800,
+              fontSize:    12,
+              fontWeight:  FontWeight.w600,
+            ),
+          ),
+        ]),
       ),
     );
   }
 
-  Widget _buildImageDisplay() {
-    final cs = Theme.of(context).colorScheme;
-
+  Widget _buildImageDisplay(ColorScheme cs) {
     return Container(
       height: 300,
-      width: double.infinity,
+      width:  double.infinity,
       decoration: BoxDecoration(
-        color: cs.surface,
+        color:        cs.surface,
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppConstants.borderColor),
+        border:       Border.all(color: AppConstants.borderColor),
       ),
       child: _image == null
           ? Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.image_outlined,
-                  size: 80,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-                ),
+                Icon(Icons.image_outlined,
+                    size: 80,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.55)),
                 const SizedBox(height: 16),
-                Text(
-                  'No image selected',
-                  style: TextStyle(
-                    color: cs.onSurfaceVariant,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text('No image selected',
+                    style: TextStyle(
+                      color:      cs.onSurfaceVariant,
+                      fontSize:   16,
+                      fontWeight: FontWeight.w600,
+                    )),
                 const SizedBox(height: 8),
-                Text(
-                  'Use Camera or Gallery below',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                ),
+                Text('Use Camera or Gallery below',
+                    style: Theme.of(context)
+                        .textTheme.bodySmall
+                        ?.copyWith(color: cs.onSurfaceVariant)),
               ],
             )
-          : Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                  child: Image.file(
-                    _image!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+          : Stack(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+                child: Image.file(_image!,
+                    fit:    BoxFit.cover,
+                    width:  double.infinity,
+                    height: double.infinity),
+              ),
+              Positioned(
+                top: 8, right: 8,
+                child: IconButton(
+                  icon:    const Icon(Icons.close),
+                  onPressed: _resetImage,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.6),
+                    foregroundColor: Colors.white,
                   ),
+                  tooltip: 'Clear image',
                 ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _resetImage,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withValues(alpha: 0.6),
-                      foregroundColor: Colors.white,
-                    ),
-                    tooltip: 'Clear image',
-                  ),
-                ),
-                if (_isProcessing)
-                  Container(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+              ),
+              if (_isProcessing)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ]),
     );
   }
 
@@ -389,36 +331,28 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: _isProcessing
-                    ? null
-                    : () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt_rounded),
-                label: const Text('Camera'),
-              ),
+        child: Row(children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _isProcessing
+                  ? null
+                  : () => _pickImage(ImageSource.camera),
+              icon:  const Icon(Icons.camera_alt_rounded),
+              label: const Text('Camera'),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isProcessing
-                    ? null
-                    : () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_rounded),
-                label: const Text('Gallery'),
-              ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _isProcessing
+                  ? null
+                  : () => _pickImage(ImageSource.gallery),
+              icon:  const Icon(Icons.photo_library_rounded),
+              label: const Text('Gallery'),
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _modelService.dispose();
-    super.dispose();
   }
 }
