@@ -174,8 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   processingTime:     _result!['processing_time']        as double?,
                   allScores:          _result!['all_scores']             as Map<String, double>?,
                   isRecognizedAsFood: _result!['is_recognized_as_food']  as bool? ?? false,
-                  isUncertain:        _result!['is_uncertain']           as bool? ?? false,
-                  colorHint:          _result!['color_hint']             as String? ?? 'neutral',
                   errorMessage:       _result!['error']                  as String?,
                   source:             _result!['source']                 as String?,
                 ),

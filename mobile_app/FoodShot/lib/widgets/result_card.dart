@@ -1,6 +1,16 @@
 // lib/widgets/result_card.dart
-
-import 'dart:math';
+//
+// Displays inference results following the three-tier confidence system
+// defined in the report (Table 5, Section 5.2.5):
+//
+//   >= 75%  High     Green   Strong match; reliable for practical use
+//   50-74%  Medium   Orange  Moderate confidence; consider top-3 alternatives
+//   <  50%  Low      Red     Weak match; image may be ambiguous or outside
+//                            trained classes
+//
+// "Not recognised" is shown only when the OOD distance gate rejects the image
+// (black/corrupted frames). For all other inputs, the best prediction is always
+// shown with the appropriate confidence tier.
 
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
@@ -11,12 +21,7 @@ class ResultCard extends StatelessWidget {
   final double? processingTime;
   final Map<String, double>? allScores;
   final bool isRecognizedAsFood;
-  /// Low confidence and/or high entropy — show top-k, not a single firm label.
-  final bool isUncertain;
-  /// From service: `carrot` | `green_veg` | `neutral` — avoids wrong same-family copy.
-  final String colorHint;
   final String? errorMessage;
-  /// 'tflite' or 'error'
   final String? source;
 
   const ResultCard({
@@ -26,11 +31,30 @@ class ResultCard extends StatelessWidget {
     this.processingTime,
     this.allScores,
     this.isRecognizedAsFood = true,
-    this.isUncertain = false,
-    this.colorHint = 'neutral',
     this.errorMessage,
     this.source,
   }) : super(key: key);
+
+  // ── Confidence tier helpers (report Table 5) ─────────────────────────────
+
+  bool get _isHigh   => confidence >= 0.75;
+  bool get _isMedium => confidence >= 0.50 && confidence < 0.75;
+  // ignore: unused_element
+  bool get _isLow    => confidence < 0.50;
+
+  Color _confidenceColor() {
+    if (_isHigh)   return Colors.green.shade700;
+    if (_isMedium) return Colors.orange.shade700;
+    return Colors.red.shade700;
+  }
+
+  String _confidenceLabel() {
+    if (_isHigh)   return 'High';
+    if (_isMedium) return 'Medium';
+    return 'Low';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +66,8 @@ class ResultCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────────────────────────
+
+            // ── Header ─────────────────────────────────────────────────────
             Row(
               children: [
                 Container(
@@ -52,133 +77,122 @@ class ResultCard extends StatelessWidget {
                     color: cs.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                   ),
-                  child: Icon(
-                    Icons.auto_awesome_rounded,
-                    color: cs.primary,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.auto_awesome_rounded,
+                      color: cs.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
                     'Prediction Results',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                // On-device inference badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    '📱 On-device',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800,
                     ),
                   ),
                 ),
-                // Backend badge
-                if (source != null && source != 'error')
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    // child: Text(
-                    //   '📱 On-device',
-                    //   style: TextStyle(
-                    //     fontSize: 11,
-                    //     fontWeight: FontWeight.w600,
-                    //     color: Colors.green.shade800,
-                    //   ),
-                    // ),
-                  ),
               ],
             ),
 
             const SizedBox(height: 20),
 
-            // ── Main result box ──────────────────────────────────────────────
+            // ── Main result box ─────────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: !isRecognizedAsFood
-                    ? (source == 'error'
-                        ? cs.errorContainer.withValues(alpha: 0.2)
-                        : cs.errorContainer.withValues(alpha: 0.3))
-                    : isUncertain
-                        ? Colors.amber.withValues(alpha: 0.12)
-                        : cs.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    ? cs.errorContainer.withValues(alpha: 0.3)
+                    : cs.primaryContainer.withValues(alpha: 0.3),
+                borderRadius:
+                    BorderRadius.circular(AppConstants.radiusMd),
                 border: Border.all(
                   color: !isRecognizedAsFood
                       ? cs.error.withValues(alpha: 0.3)
-                      : isUncertain
-                          ? Colors.amber.withValues(alpha: 0.45)
-                          : cs.primary.withValues(alpha: 0.3),
+                      : cs.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: !isRecognizedAsFood
-                  ? _buildNotRecognizedContent(cs)
-                  : isUncertain
-                      ? _buildUncertainContent(cs)
-                      : _buildRecognizedContent(cs),
+                  ? _buildNotRecognisedContent(cs)
+                  : _buildPredictionContent(cs),
             ),
 
-            // ── Confidence bar (recognized only) ────────────────────────────
+            // ── Confidence bar (recognised only, report Table 5) ────────────
             if (isRecognizedAsFood) ...[
               const SizedBox(height: 16),
-              _buildConfidenceBar(confidence, cs, isUncertain: isUncertain),
+              _buildConfidenceBar(cs),
             ],
 
-            // ── Processing time ──────────────────────────────────────────────
+            // ── Processing time ─────────────────────────────────────────────
             if (processingTime != null) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(
-                    Icons.timer_outlined,
-                    size: 15,
-                    color: cs.onSurfaceVariant,
-                  ),
+                  Icon(Icons.timer_outlined,
+                      size: 15, color: cs.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Text(
-                    'Processed in ${processingTime!.toStringAsFixed(2)}s  ·  On-device',
+                    'Processed in ${processingTime!.toStringAsFixed(2)}s',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurfaceVariant,
-                    ),
+                        fontSize: 12, color: cs.onSurfaceVariant),
                   ),
                 ],
               ),
             ],
 
-            // ── Top predictions / full ranking (recognized only) ─────────────
+            // ── Top Predictions ─────────────────────────────────────────────
+            // Always shown when recognised so the user can compare
+            // alternative preparations (most useful for Low and Medium tiers).
             if (isRecognizedAsFood &&
                 allScores != null &&
                 allScores!.length > 1) ...[
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 12),
-              if (!isUncertain && confidence < 0.35) ...[
+
+              // Low-confidence advisory (report Table 5)
+              if (confidence < 0.50) ...[
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                    color: Colors.red.withValues(alpha: 0.07),
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.radiusSm),
                     border: Border.all(
-                        color: Colors.amber.withValues(alpha: 0.35)),
+                        color: Colors.red.withValues(alpha: 0.25)),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline,
-                          size: 15, color: Colors.amber),
+                      Icon(Icons.info_outline,
+                          size: 15, color: Colors.red.shade700),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Low confidence — the model is uncertain. '
-                          'Try a clearer, well-lit photo.',
+                          'Low confidence — the image may be ambiguous, '
+                          'poorly lit, or outside the trained classes. '
+                          'Review the alternatives below.',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.amber.shade900,
-                          ),
+                              fontSize: 12,
+                              color: Colors.red.shade900,
+                              height: 1.4),
                         ),
                       ),
                     ],
@@ -186,18 +200,18 @@ class ResultCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
               ],
-              Text(
-                isUncertain ? 'Remaining classes' : 'Runner-up scores',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+
+              const Text(
+                'Top Predictions',
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
-              ...allScores!.entries
-                  .skip(isUncertain ? 3 : 1)
-                  .take(isUncertain ? 8 : 4)
-                  .map((entry) => _buildScoreRow(entry, cs)),
+
+              // Show all 3 predictions
+              ...allScores!.entries.take(3).map(
+                    (entry) => _buildScoreRow(entry, cs),
+                  ),
             ],
           ],
         ),
@@ -205,141 +219,14 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  // ── Uncertain (in-distribution but low confidence / high entropy) ────────
+  // ── Recognised prediction content ────────────────────────────────────────
 
-  Widget _buildUncertainContent(ColorScheme cs) {
-    final top3 = (allScores?.entries.toList() ?? [])
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final bool sameFamily = top3.length >= 2 &&
-        _ingredientRootKey(top3[0].key) == _ingredientRootKey(top3[1].key);
-    final String topRoot = top3.isNotEmpty ? _ingredientRootKey(top3[0].key) : '';
-    final bool mismatchOrangeVsBeans =
-        colorHint == 'carrot' && topRoot == 'greenbeans';
-    final bool mismatchGreenVsCarrot =
-        colorHint == 'green_veg' && topRoot == 'carrot';
-    final bool colorModelMismatch =
-        mismatchOrangeVsBeans || mismatchGreenVsCarrot;
-    final bool sameFamilyFriendly =
-        sameFamily && !colorModelMismatch;
-    final String? familyTitle = sameFamilyFriendly
-        ? _ingredientTitle(_ingredientRootKey(top3[0].key))
-        : null;
-
+  Widget _buildPredictionContent(ColorScheme cs) {
     return Column(
       children: [
-        Icon(Icons.help_outline_rounded, size: 44, color: Colors.amber.shade800),
-        const SizedBox(height: 10),
+        // Food name (large, primary colour)
         Text(
-          colorModelMismatch
-              ? 'Visual vs model mismatch'
-              : (sameFamilyFriendly && familyTitle != null)
-                  ? '$familyTitle — preparation unclear'
-                  : 'Unable to confidently identify the food',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.amber.shade900,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          mismatchOrangeVsBeans
-              ? 'The picture looks orange (carrot-like), but the model’s best '
-                  'scores are green bean classes. That can be lighting, a mixed '
-                  'dish, label noise in training, or similar textures in the '
-                  'embedding space. Use the variants below as hints only — not a '
-                  'final label.'
-              : mismatchGreenVsCarrot
-                  ? 'The crop looks strongly green, but the model’s top scores '
-                      'are carrot classes. Check lighting, mixed ingredients, '
-                      'or dataset labelling. Variants below are hints only.'
-              : sameFamilyFriendly && familyTitle != null
-                  ? 'The model agrees this is ${familyTitle.toLowerCase()}, but raw '
-                      'vs cooked curry styles score almost the same — common when '
-                      'lighting or sauce colour is ambiguous. Variants below are '
-                      'not a final label.'
-                  : 'The model is unsure (low confidence and/or probabilities spread '
-                      'across classes). Below are the most likely matches — not a final label.',
-          style: TextStyle(
-            fontSize: 13,
-            color: cs.onSurfaceVariant,
-            height: 1.35,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            sameFamilyFriendly
-                ? 'Preparation variants (top 3)'
-                : 'Top 3 possible matches',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...List.generate(
-          min(3, top3.length),
-          (i) {
-            final e = top3[i];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 28,
-                    child: Text(
-                      '${i + 1}.',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: cs.primary,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _displayClassName(e.key),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '${(e.value * 100).toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // ── Recognized food content ──────────────────────────────────────────────
-
-  Widget _buildRecognizedContent(ColorScheme cs) {
-    return Column(
-      children: [
-        // Food name large
-        Text(
-          _displayClassName(prediction),
+          _foodName(prediction),
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -347,21 +234,32 @@ class ResultCard extends StatelessWidget {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        // Cooking style (e.g. "WHITE CURRY")
+        if (_cookingStyle(prediction).isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            _cookingStyle(prediction),
+            style: TextStyle(
+              fontSize: 14,
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+        const SizedBox(height: 8),
         Text(
           '${(confidence * 100).toStringAsFixed(1)}% confidence',
-          style: TextStyle(
-            fontSize: 15,
-            color: cs.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 15, color: cs.onSurfaceVariant),
         ),
       ],
     );
   }
 
-  // ── Not recognised content ───────────────────────────────────────────────
+  // ── Not-recognised content ────────────────────────────────────────────────
 
-  Widget _buildNotRecognizedContent(ColorScheme cs) {
+  Widget _buildNotRecognisedContent(ColorScheme cs) {
     final isError = source == 'error';
     return Column(
       children: [
@@ -386,40 +284,46 @@ class ResultCard extends StatelessWidget {
         if (isError && errorMessage != null)
           Text(
             errorMessage!,
-            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            style: TextStyle(
+                fontSize: 13, color: cs.onSurfaceVariant),
             textAlign: TextAlign.center,
           )
         else ...[
           Text(
-            'This image doesn\'t match any Sri Lankan food in the dataset.\n'
-            'Please try a clear photo of one of the supported items:',
-            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            'This image does not match any Sri Lankan vegetable '
+            'in the dataset.\nPlease try a clear photo of:',
+            style: TextStyle(
+                fontSize: 13, color: cs.onSurfaceVariant, height: 1.4),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-              border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.radiusSm),
+              border: Border.all(
+                  color: cs.primary.withValues(alpha: 0.15)),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _supportedItemRow('🥕', 'Carrot',
+                _classRow('🥕', 'Carrot',
                     'Raw · White Curry'),
-                const SizedBox(height: 4),
-                _supportedItemRow('🫘', 'Green Beans',
+                const SizedBox(height: 6),
+                _classRow('🫘', 'Green Beans',
                     'Raw · Tempered · White Curry'),
-                const SizedBox(height: 4),
-                _supportedItemRow('🎃', 'Pumpkin',
+                const SizedBox(height: 6),
+                _classRow('🎃', 'Pumpkin',
                     'Raw · Red Curry · White Curry'),
               ],
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            'Tips: good lighting, fill the frame, avoid blur.',
+            'Tips: good lighting · fill the frame · avoid blur',
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurfaceVariant,
@@ -432,46 +336,78 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  Widget _supportedItemRow(String emoji, String name, String styles) {
+  Widget _classRow(String emoji, String name, String styles) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(emoji, style: const TextStyle(fontSize: 14)),
         const SizedBox(width: 6),
-        Text(
-          name,
-          style: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w600),
-        ),
+        Text(name,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(width: 4),
-        Text(
-          '($styles)',
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        Flexible(
+          child: Text('($styles)',
+              style: const TextStyle(
+                  fontSize: 12, color: Colors.black54)),
         ),
       ],
     );
   }
 
-  // ── Score row ────────────────────────────────────────────────────────────
+  // ── Confidence bar (report Table 5) ──────────────────────────────────────
 
-  Widget _buildScoreRow(
-      MapEntry<String, double> entry, ColorScheme cs) {
-    final pct = entry.value * 100;
+  Widget _buildConfidenceBar(ColorScheme cs) {
+    final color = _confidenceColor();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Confidence Level',
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              _confidenceLabel(),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: confidence,
+            minHeight: 8,
+            backgroundColor: cs.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Score row ─────────────────────────────────────────────────────────────
+
+  Widget _buildScoreRow(MapEntry<String, double> entry, ColorScheme cs) {
     final isTop = entry.key == prediction;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         children: [
-          // Highlight top class
           Container(
             width: 6,
             height: 6,
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isTop
-                  ? cs.primary
-                  : cs.outlineVariant,
+              color: isTop ? cs.primary : cs.outlineVariant,
             ),
           ),
           Expanded(
@@ -486,7 +422,7 @@ class ResultCard extends StatelessWidget {
             ),
           ),
           Text(
-            '${pct.toStringAsFixed(1)}%',
+            '${(entry.value * 100).toStringAsFixed(1)}%',
             style: TextStyle(
               fontSize: 13,
               fontWeight: isTop ? FontWeight.w700 : FontWeight.w500,
@@ -498,82 +434,25 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  // ── Confidence bar ───────────────────────────────────────────────────────
+  // ── Label helpers ─────────────────────────────────────────────────────────
 
-  Widget _buildConfidenceBar(double conf, ColorScheme cs,
-      {bool isUncertain = false}) {
-    Color barColor() {
-      if (isUncertain) return Colors.amber.shade700;
-      if (conf >= 0.70) return Colors.green;
-      if (conf >= 0.45) return Colors.orange;
-      return Colors.red;
-    }
-
-    String label() {
-      if (isUncertain) return 'Uncertain';
-      if (conf >= 0.70) return 'High';
-      if (conf >= 0.45) return 'Medium';
-      return 'Low';
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              isUncertain ? 'Best candidate score' : 'Confidence level',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            Text(
-              label(),
-              style: TextStyle(
-                fontSize: 12,
-                color: barColor(),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: conf,
-            minHeight: 8,
-            backgroundColor: cs.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(barColor()),
-          ),
-        ),
-      ],
-    );
+  /// "carrot_white_curry" → "Carrot"
+  String _foodName(String label) {
+    final parts = label.split('_');
+    if (parts.isEmpty) return label;
+    final root = parts.first;
+    if (root == 'greenbeans') return 'Green Beans';
+    return '${root[0].toUpperCase()}${root.substring(1)}';
   }
 
-  // ── Label formatting helpers ─────────────────────────────────────────────
-
-  /// First token of `snake_case` class id, e.g. `greenbeans_white_curry` → `greenbeans`.
-  String _ingredientRootKey(String label) {
-    final i = label.indexOf('_');
-    return i < 0 ? label : label.substring(0, i);
+  /// "carrot_white_curry" → "WHITE CURRY"
+  String _cookingStyle(String label) {
+    final parts = label.split('_');
+    if (parts.length <= 1) return '';
+    return parts.sublist(1).join(' ').toUpperCase();
   }
 
-  /// Heading-style name; use `.toLowerCase()` in running text.
-  String _ingredientTitle(String root) {
-    switch (root) {
-      case 'greenbeans':
-        return 'Green beans';
-      case 'carrot':
-        return 'Carrot';
-      case 'pumpkin':
-        return 'Pumpkin';
-      default:
-        if (root.isEmpty) return 'This food';
-        return root[0].toUpperCase() + root.substring(1);
-    }
-  }
-
-  /// Human-readable label from [AppConstants.foodClassNames].
+  /// Full human-readable name from AppConstants or auto-formatted fallback.
   String _displayClassName(String label) {
     return AppConstants.foodClassNames[label] ??
         label

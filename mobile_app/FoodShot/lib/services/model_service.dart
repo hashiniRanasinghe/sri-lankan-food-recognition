@@ -1,13 +1,7 @@
 // lib/services/model_service.dart
 //
 // Thin orchestration layer over FoodRecognitionService.
-// All inference is done on-device via TFLite — no network calls are made.
-//
-// On-device pipeline (FoodRecognitionService):
-//   image → preprocess (224×224, ImageNet normalise) →
-//   TFLite embedding (128-dim) → L2-normalise →
-//   cosine similarity vs L2-normalised prototypes →
-//   entropy-gated softmax → result
+// All inference is done on-device via TFLite — no network calls.
 
 import 'dart:io';
 import 'food_recognition_service.dart';
@@ -26,7 +20,6 @@ class ModelService {
 
   Future<bool> loadModel() async {
     if (_tfliteLoaded) return true;
-
     try {
       await _foodService.initialize();
       _tfliteLoaded = true;
@@ -46,12 +39,10 @@ class ModelService {
   // ── Inference ─────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> recognizeFood(File imageFile) async {
-    // Lazy-load on first call
     if (!_tfliteLoaded) {
       final ok = await loadModel();
       if (!ok) return _errorResult();
     }
-
     try {
       final result = await _foodService.recognizeFood(imageFile);
       return {...result, 'source': 'tflite'};
@@ -69,17 +60,13 @@ class ModelService {
         ? 'On-device model error — try restarting the app.\n($error)'
         : 'On-device model could not be loaded.\n'
           'Ensure assets/model.tflite is listed in pubspec.yaml.';
-
     print('⚠️  Returning error result: $msg');
-
     return {
       'class'                : AppConstants.foodClasses.first,
       'confidence'           : 0.0,
       'all_scores'           : <String, double>{},
       'processing_time'      : 0.0,
       'is_recognized_as_food': false,
-      'is_uncertain'         : false,
-      'color_hint'           : 'neutral',
       'error'                : msg,
       'source'               : 'error',
     };
