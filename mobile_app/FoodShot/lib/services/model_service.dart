@@ -1,13 +1,13 @@
 // lib/services/model_service.dart
 //
-// ⚠️  The Hugging Face free Inference API no longer supports image-classification
-//     models (HTTP 410 "deprecated" as of Feb 2026). There is no free hosted
-//     fallback available. All inference is done on-device with TFLite.
+// Thin orchestration layer over FoodRecognitionService.
+// All inference is done on-device via TFLite — no network calls are made.
 //
-// On-device pipeline:
+// On-device pipeline (FoodRecognitionService):
 //   image → preprocess (224×224, ImageNet normalise) →
 //   TFLite embedding (128-dim) → L2-normalise →
-//   cosine similarity vs prototypes → entropy-gated softmax → result
+//   cosine similarity vs L2-normalised prototypes →
+//   entropy-gated softmax → result
 
 import 'dart:io';
 import 'food_recognition_service.dart';
@@ -16,10 +16,10 @@ import '../utils/constants.dart';
 class ModelService {
   final FoodRecognitionService _foodService = FoodRecognitionService();
 
-  bool _tfliteLoaded = false;
+  bool    _tfliteLoaded = false;
   String? _loadError;
 
-  bool get isLoaded    => _tfliteLoaded;
+  bool    get isLoaded  => _tfliteLoaded;
   String? get loadError => _loadError;
 
   // ── Initialise ────────────────────────────────────────────────────────────
@@ -49,40 +49,39 @@ class ModelService {
     // Lazy-load on first call
     if (!_tfliteLoaded) {
       final ok = await loadModel();
-      if (!ok) return _tfliteFailResult();
+      if (!ok) return _errorResult();
     }
 
     try {
       final result = await _foodService.recognizeFood(imageFile);
-      // Tag result so the UI can show "📱 On-device"
       return {...result, 'source': 'tflite'};
     } catch (e, stack) {
       print('❌ TFLite inference error: $e');
       print(stack);
-      return _tfliteFailResult(error: e.toString());
+      return _errorResult(error: e.toString());
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /// Shown when TFLite itself cannot load or crashes during inference.
-  /// Gives the user an actionable message instead of a wrong label.
-  Map<String, dynamic> _tfliteFailResult({String? error}) {
+  Map<String, dynamic> _errorResult({String? error}) {
     final msg = error != null
         ? 'On-device model error — try restarting the app.\n($error)'
         : 'On-device model could not be loaded.\n'
-          'Make sure assets/model.tflite is present in your Flutter assets.';
+          'Ensure assets/model.tflite is listed in pubspec.yaml.';
 
     print('⚠️  Returning error result: $msg');
 
     return {
-      'class'               : AppConstants.foodClasses.first,
-      'confidence'          : 0.0,
-      'all_scores'          : <String, double>{},
-      'processing_time'     : 0.0,
+      'class'                : AppConstants.foodClasses.first,
+      'confidence'           : 0.0,
+      'all_scores'           : <String, double>{},
+      'processing_time'      : 0.0,
       'is_recognized_as_food': false,
-      'error'               : msg,
-      'source'              : 'error',
+      'is_uncertain'         : false,
+      'color_hint'           : 'neutral',
+      'error'                : msg,
+      'source'               : 'error',
     };
   }
 

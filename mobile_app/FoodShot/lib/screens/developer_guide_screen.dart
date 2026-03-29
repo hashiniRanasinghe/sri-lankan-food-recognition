@@ -8,11 +8,14 @@ import '../utils/constants.dart';
 class DeveloperGuideScreen extends StatelessWidget {
   const DeveloperGuideScreen({Key? key}) : super(key: key);
 
-  static const githubUrl =
-      'https://github.com/hashiniRanasinghe/sri-lankan-food-recognition/tree/dev1';
+  static const githubUrl = AppConstants.repoUrl;
+  static const hfUrl = AppConstants.huggingFaceUrl;
+  static const kaggleUrl = AppConstants.kaggleDatasetUrl;
+  static const pypiUrl = AppConstants.pypiPackageUrl;
+  static const testPypiUrl = AppConstants.testPypiPackageUrl;
 
-  static const hfUrl =
-      'https://huggingface.co/ranasinghehashini/srilankan-food-recognition';
+  static const colabUrl =
+      'https://colab.research.google.com/drive/17QB6M18sc0AvvNTnqRGjOqVC3xQITuYi?usp=sharing';
 
   @override
   Widget build(BuildContext context) {
@@ -25,87 +28,103 @@ class DeveloperGuideScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           _buildSection(
-            icon: Icons.info_outline,
+            icon: Icons.psychology_rounded,
             title: 'About the Model',
-            content: '''
-This app uses the Sri Lankan Food Recognition model with transfer learning.
-
-Architecture: Transfer Learning (Pre-trained CNN)
-- Deep learning with fine-tuning
-- Trained on 8 original Sri Lankan food classes
-- Extendable with your own classes
-- Works with minimal training data (20-50 images/class)
-- Achieves 85-90%+ accuracy
-''',
+            content:
+                'This app uses a Prototypical Network — a few-shot metric-learning '
+                'architecture — for on-device Sri Lankan food recognition.\n\n'
+                'Architecture: Prototypical Network\n'
+                '• Pre-trained MobileNetV2 backbone (ImageNet weights)\n'
+                '• 128-dimensional embedding head\n'
+                '• Trained on 8 Sri Lankan vegetable/cooking-state classes\n'
+                '• Cosine-similarity classification against stored class prototypes\n'
+                '• OOD + uncertainty handling (see OOD section below)\n'
+                '• Achieves ~90% validation accuracy\n'
+                '• Works with 20–50 images per class',
           ),
 
           _buildSection(
-            icon: Icons.download,
+            icon: Icons.download_rounded,
             title: 'Model Files',
             content:
-                '''
-Available formats:
-- PyTorch (.pth) - For Python/research
-- TorchScript (.pt) - For production deployment  
-- TFLite (.tflite) - For mobile apps
-- ONNX (.onnx) - For cross-platform
-
-Download from:
-- GitHub: $githubUrl
-- Hugging Face: $hfUrl
-''',
+                'Available model formats:\n'
+                '• TFLite (.tflite) — bundled in this app for on-device inference\n'
+                '• PyTorch (.pth)   — for research / fine-tuning\n'
+                '• ONNX (.onnx)     — for cross-platform deployment\n\n'
+                'Download from:\n'
+                '• GitHub: $githubUrl\n'
+                '• Hugging Face: $hfUrl\n'
+                '• Dataset on Kaggle: $kaggleUrl',
           ),
 
           _buildSection(
-            icon: Icons.restaurant_menu,
-            title: 'Original 8 Food Classes',
+            icon: Icons.restaurant_menu_rounded,
+            title: '8 Supported Food Classes',
             content:
-                '''
-The base model recognizes these Sri Lankan dishes:
-${AppConstants.foodClasses.map((c) => '• $c').join('\n')}
+                'The model recognises these Sri Lankan vegetable / cooking-state '
+                'combinations:\n\n'
+                '${AppConstants.foodClasses.map((c) => '• ${AppConstants.foodClassNames[c] ?? c}').join('\n')}\n\n'
+                'You can add your own classes using the Python trainer package.',
+          ),
 
-You can add your own classes using the trainer!
-''',
+          _buildSection(
+            icon: Icons.tune_rounded,
+            title: 'OOD & Uncertainty (current app build)',
+            content:
+                'Rejection uses two gates (see `food_recognition_service.dart`):\n\n'
+                'Gate 1 — Max cosine similarity:\n'
+                '  Reject only if max_sim < ~0.025 **and** top-1 softmax mass is '
+                'still near chance (< ~0.129). If the model already favours one '
+                'class above uniform 1/8, distance alone does not reject (avoids '
+                'false OOD on phone crops / mean prototypes).\n\n'
+                'Gate 2 — Entropy safety net:\n'
+                '  Reject if Shannon entropy ≥ 2.00 **and** top-1 ≤ 13.5% '
+                '(near-uniform guess).\n\n'
+                'If accepted but confidence < 50% or entropy > 1.5, the UI shows '
+                '**uncertain mode** (top-3, preparation-hint copy). Orange crops '
+                'apply a small cosine debias toward `carrot_*` vs `greenbeans_*`. '
+                'Hugging Face Inference API is not used — all inference is TFLite '
+                'on-device.\n\n'
+                'Test PyPI: $testPypiUrl',
           ),
 
           _buildCodeSection(
-            title: 'Python Usage - Add Your Class',
+            title: 'Python — Add Your Own Class',
             language: 'Python',
-            code: '''
-from srilankan_food_trainer import SriLankanFoodTrainer
+            code: '''from srilankan_food_trainer import SriLankanFoodTrainer
 
-# Initialize trainer
+# Initialise the Prototypical Network trainer
 trainer = SriLankanFoodTrainer()
 
-# Add your own class
+# Add a new class (20–50 images recommended)
 trainer.add_class(
     class_name="your_food_name",
-    images_path="/path/to/images"  # 20-50 images
+    images_path="/path/to/your/images"
 )
 
-# Train the model
+# Fine-tune the embedding head
 trainer.train(epochs=50)
 
-# Predict
+# Predict on a new image
 result = trainer.predict("food_image.jpg")
-print(f"Class: {result['class']}")
+print(f"Class:      {result['class']}")
 print(f"Confidence: {result['confidence']:.1%}")
+print(f"Is food:    {result['is_food']}")
 
-# Save model
+# Save updated model
 trainer.save_model("best_model.pth")
 ''',
           ),
 
           _buildCodeSection(
-            title: 'Google Colab Training',
+            title: 'Google Colab — Quick Training',
             language: 'Python',
-            code: '''
-# 1. Install the library
+            code: '''# 1. Install the trainer package
 !pip install srilankan-food-trainer
 
-# 2. Upload your images as ZIP
+# 2. Upload your images as a ZIP archive
 from google.colab import files
-uploaded = files.upload()
+uploaded = files.upload()          # select your_food.zip
 
 # 3. Train
 from srilankan_food_trainer import SriLankanFoodTrainer
@@ -114,61 +133,66 @@ trainer = SriLankanFoodTrainer()
 trainer.add_class_from_zip("your_food.zip")
 trainer.train(epochs=50)
 
-# 4. Download model
-trainer.save_model("best_model.pth")
-files.download("best_model.pth")
+# 4. Export to TFLite for mobile
+trainer.export_to_tflite("model.tflite")
+
+# 5. Download
+files.download("model.tflite")
 ''',
           ),
 
           _buildCodeSection(
-            title: 'Flutter/Dart Usage',
+            title: 'Flutter / Dart — Inference Snippet',
             language: 'Dart',
-            code: '''
-import 'package:tflite_flutter/tflite_flutter.dart';
+            code: '''import 'package:tflite_flutter/tflite_flutter.dart';
+import 'dart:math';
 
-// Load model
+// Load the TFLite model (4 CPU threads)
 final interpreter = await Interpreter.fromAsset(
   'assets/model.tflite',
-  options: InterpreterOptions()..threads = 4
+  options: InterpreterOptions()..threads = 4,
 );
 
-// Preprocess image to 224x224 normalized
-var input = preprocessImage(image);
+// Build NHWC input tensor [1][224][224][3] with ImageNet normalisation
+// mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]
+var input = buildNHWCTensor(preprocessedImage);   // your preprocess fn
 
-// Run inference
-var output = List.filled(numClasses, 0.0).reshape([1, numClasses]);
+// Run inference — output is [1][128] embedding
+var output = List.generate(1, (_) => List.filled(128, 0.0));
 interpreter.run(input, output);
 
-// Get prediction
-var probabilities = output[0] as List<double>;
-var maxIndex = probabilities.indexOf(probabilities.reduce(max));
-var confidence = probabilities[maxIndex];
+// L2-normalise the embedding
+final emb = l2Normalize(Float32List.fromList(output[0]));
 
-print('Predicted: \${classes[maxIndex]}');
-print('Confidence: \${(confidence * 100).toStringAsFixed(1)}%');
+// Cosine similarity against L2-normalised prototypes → softmax × 10
+final sims = cosineSimilarities(emb, prototypes);
+final probs = softmax(sims, temperature: 10.0);
+
+// OOD check: max cosine similarity < 0.20 → not a recognised food
+final maxSim = sims.values.reduce(max);
+final isFood = maxSim >= 0.20;
 ''',
           ),
 
           _buildCodeSection(
             title: 'Model Conversion',
             language: 'Python',
-            code: '''
-import torch
+            code: '''import torch
 from srilankan_food_trainer import SriLankanFoodTrainer
 
-# Load PyTorch model
+# Load trained PyTorch model
 trainer = SriLankanFoodTrainer()
 trainer.load_model("best_model.pth")
 
-# Convert to TFLite for mobile
+# Export to TFLite for mobile (Flutter / Android / iOS)
 trainer.export_to_tflite("model.tflite")
 
-# Convert to ONNX for cross-platform
+# Export to ONNX for cross-platform deployment
 trainer.export_to_onnx("model.onnx")
 
-# Convert to TorchScript for production
-model_scripted = torch.jit.script(trainer.model)
-model_scripted.save("model.pt")
+# Export to TorchScript for production Python servers
+scripted = torch.jit.script(trainer.model)
+scripted.save("model.pt")
 ''',
           ),
 
@@ -179,10 +203,14 @@ model_scripted.save("model.pt")
           const SizedBox(height: 16),
 
           _buildTipsCard(),
+
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+
+  // ── Sub-widgets ────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Card(
@@ -212,8 +240,8 @@ model_scripted.save("model.pt")
             ),
             const SizedBox(height: 8),
             Text(
-              'Use our pre-trained model in your applications',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              'Prototypical Network · 128-dim embeddings · On-device TFLite',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           ],
@@ -244,22 +272,21 @@ model_scripted.save("model.pt")
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppConstants.borderColor),
                   ),
-                  child: Icon(icon, color: AppConstants.primaryColor, size: 18),
+                  child:
+                      Icon(icon, color: AppConstants.primaryColor, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(content, style: const TextStyle(fontSize: 15, height: 1.5)),
+            Text(content, style: const TextStyle(fontSize: 14, height: 1.6)),
           ],
         ),
       ),
@@ -288,27 +315,30 @@ model_scripted.save("model.pt")
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppConstants.borderColor),
                   ),
-                  child: Icon(
-                    Icons.code,
-                    color: AppConstants.primaryColor,
-                    size: 18,
-                  ),
+                  child: Icon(Icons.code,
+                      color: AppConstants.primaryColor, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        language,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 20),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: code));
-                  },
+                  icon: const Icon(Icons.copy, size: 18),
+                  onPressed: () => Clipboard.setData(ClipboardData(text: code)),
                   tooltip: 'Copy code',
                 ),
               ],
@@ -316,7 +346,7 @@ model_scripted.save("model.pt")
           ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: Colors.grey.shade900,
               borderRadius: const BorderRadius.only(
@@ -330,9 +360,9 @@ model_scripted.save("model.pt")
                 code,
                 style: const TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: 12,
                   color: Colors.greenAccent,
-                  height: 1.5,
+                  height: 1.55,
                 ),
               ),
             ),
@@ -345,44 +375,77 @@ model_scripted.save("model.pt")
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _launchUrl(context, githubUrl),
-            icon: const Icon(Icons.code),
-            label: const Text('View on GitHub'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-          ),
+        _linkButton(
+          context: context,
+          label: 'View Source on GitHub',
+          icon: Icons.code,
+          url: githubUrl,
+          filled: true,
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _launchUrl(context, hfUrl),
-            icon: const Icon(Icons.cloud_download),
-            label: const Text('Hugging Face Models'),
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
-          ),
+        const SizedBox(height: 10),
+        _linkButton(
+          context: context,
+          label: 'Download Model — Hugging Face',
+          icon: Icons.cloud_download_rounded,
+          url: hfUrl,
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _launchUrl(
-              context,
-              'https://colab.research.google.com/drive/17QB6M18sc0AvvNTnqRGjOqVC3xQITuYi?usp=sharing',
-            ),
-            icon: const Icon(Icons.play_circle_outline),
-            label: const Text('Try in Google Colab'),
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
-          ),
+        const SizedBox(height: 10),
+        _linkButton(
+          context: context,
+          label: 'Dataset on Kaggle',
+          icon: Icons.dataset_rounded,
+          url: kaggleUrl,
+        ),
+        const SizedBox(height: 10),
+        _linkButton(
+          context: context,
+          label: 'Python Package on PyPI',
+          icon: Icons.code_rounded,
+          url: pypiUrl,
+        ),
+        const SizedBox(height: 10),
+        _linkButton(
+          context: context,
+          label: 'Try Training in Google Colab',
+          icon: Icons.play_circle_outline_rounded,
+          url: colabUrl,
         ),
       ],
     );
+  }
+
+  Widget _linkButton({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required String url,
+    bool filled = false,
+  }) {
+    final style = filled
+        ? ElevatedButton.styleFrom(
+            padding: const EdgeInsets.all(14),
+            backgroundColor: Colors.black87,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 48),
+          )
+        : OutlinedButton.styleFrom(
+            padding: const EdgeInsets.all(14),
+            minimumSize: const Size(double.infinity, 48),
+          );
+
+    return filled
+        ? ElevatedButton.icon(
+            onPressed: () => _launchUrl(context, url),
+            icon: Icon(icon),
+            label: Text(label),
+            style: style,
+          )
+        : OutlinedButton.icon(
+            onPressed: () => _launchUrl(context, url),
+            icon: Icon(icon),
+            label: Text(label),
+            style: style,
+          );
   }
 
   Widget _buildTipsCard() {
@@ -402,28 +465,25 @@ model_scripted.save("model.pt")
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: Colors.amber.shade200),
                   ),
-                  child: const Icon(
-                    Icons.lightbulb,
-                    color: Colors.amber,
-                    size: 18,
-                  ),
+                  child: const Icon(Icons.lightbulb, color: Colors.amber, size: 18),
                 ),
                 const SizedBox(width: 12),
                 const Text(
                   'Training Tips',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             const Text(
-              '• Use 20-50 high-quality images per class\n'
+              '• Use 20–50 high-quality images per class\n'
               '• Ensure good lighting and clear focus\n'
-              '• Include variety in angles and backgrounds\n'
-              '• Train for 50-100 epochs for best results\n'
-              '• Aim for 85-90%+ validation accuracy\n'
-              '• Use GPU in Colab for faster training',
-              style: TextStyle(fontSize: 15, height: 1.5),
+              '• Capture variety in angles, backgrounds, and portion sizes\n'
+              '• Train for 50–100 epochs for best results\n'
+              '• Target ≥ 90% validation accuracy before exporting\n'
+              '• Use GPU in Colab for significantly faster training\n'
+              '• Re-normalise class prototypes after adding new classes',
+              style: TextStyle(fontSize: 14, height: 1.6),
             ),
           ],
         ),
@@ -438,22 +498,18 @@ model_scripted.save("model.pt")
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open $urlString'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not open $urlString'),
+            backgroundColor: Colors.red,
+          ));
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening link: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error opening link: $e'),
+          backgroundColor: Colors.red,
+        ));
       }
     }
   }

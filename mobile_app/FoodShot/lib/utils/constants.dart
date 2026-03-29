@@ -62,9 +62,15 @@ class AppConstants {
   static const List<double> mean = [0.485, 0.456, 0.406];
   static const List<double> std = [0.229, 0.224, 0.225];
 
-  // Repository info
+  // Appendix A — repository, model, dataset, packages (keep in sync with report)
   static const String repoUrl =
-      'https://github.com/ranasinghehashini/srilankan-food-recognition';
+      'https://github.com/hashiniRanasinghe/sri-lankan-food-recognition/tree/dev1';
   static const String huggingFaceUrl =
       'https://huggingface.co/ranasinghehashini/srilankan-food-recognition';
+  static const String kaggleDatasetUrl =
+      'https://www.kaggle.com/datasets/ranasinghehashini/sri-lankan-food-recognition-dataset?resource=download';
+  static const String pypiPackageUrl =
+      'https://pypi.org/project/srilankan-food-trainer/';
+  static const String testPypiPackageUrl =
+      'https://test.pypi.org/project/srilankan-food-trainer/';
 }
