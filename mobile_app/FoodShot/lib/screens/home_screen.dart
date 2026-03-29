@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _buildHeroHeader(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
-              _buildModelStatusBadge(cs),
+              // _buildModelStatusBadge(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
               _buildImageDisplay(cs),
               const SizedBox(height: AppConstants.sectionSpacing),
@@ -241,58 +241,58 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildModelStatusBadge(ColorScheme cs) {
-    final Color color;
-    final IconData icon;
-    final String label;
+  // Widget _buildModelStatusBadge(ColorScheme cs) {
+  //   final Color color;
+  //   final IconData icon;
+  //   final String label;
 
-    if (_modelLoading) {
-      color = Colors.orange;
-      icon  = Icons.hourglass_top_rounded;
-      label = 'Loading model…';
-    } else if (_modelError != null) {
-      color = Colors.red;
-      icon  = Icons.error_rounded;
-      label = '⚠ Model failed to load';
-    } else {
-      color = Colors.green;
-      icon  = Icons.check_circle_rounded;
-      label = '📱 On-device model ready';
-    }
+  //   if (_modelLoading) {
+  //     color = Colors.orange;
+  //     icon  = Icons.hourglass_top_rounded;
+  //     // label = 'Loading model…';
+  //   } else if (_modelError != null) {
+  //     color = Colors.red;
+  //     icon  = Icons.error_rounded;
+  //     // label = '⚠ Model failed to load';
+  //   } else {
+  //     color = Colors.green;
+  //     icon  = Icons.check_circle_rounded;
+  //     // label = '📱 On-device model ready';
+  //   }
 
-    return Center(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color:        color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(999),
-          border:       Border.all(color: color.withValues(alpha: 0.30)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          _modelLoading
-              ? SizedBox(
-                  width: 13,
-                  height: 13,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                )
-              : Icon(icon, color: color, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color:      color,
-              fontSize:   12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
+  //   return Center(
+  //     child: AnimatedContainer(
+  //       duration: const Duration(milliseconds: 300),
+  //       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+  //       decoration: BoxDecoration(
+  //         color:        color.withValues(alpha: 0.10),
+  //         borderRadius: BorderRadius.circular(999),
+  //         border:       Border.all(color: color.withValues(alpha: 0.30)),
+  //       ),
+  //       child: Row(mainAxisSize: MainAxisSize.min, children: [
+  //         _modelLoading
+  //             ? SizedBox(
+  //                 width: 13,
+  //                 height: 13,
+  //                 child: CircularProgressIndicator(
+  //                   strokeWidth: 2,
+  //                   valueColor: AlwaysStoppedAnimation(color),
+  //                 ),
+  //               )
+  //             // : Icon(icon, color: color, size: 15),
+  //         // const SizedBox(width: 6),
+  //         // Text(
+  //         //   // label,
+  //         //   style: TextStyle(
+  //         //     color:      color,
+  //         //     fontSize:   12,
+  //         //     fontWeight: FontWeight.w600,
+  //         //   ),
+  //         // ),
+        
+  //     ),
+  //   );
+  // }
 
   Widget _buildImageDisplay(ColorScheme cs) {
     return Container(

@@ -80,14 +80,14 @@ class ResultCard extends StatelessWidget {
                         color: Colors.green.withValues(alpha: 0.4),
                       ),
                     ),
-                    child: Text(
-                      '📱 On-device',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green.shade800,
-                      ),
-                    ),
+                    // child: Text(
+                    //   '📱 On-device',
+                    //   style: TextStyle(
+                    //     fontSize: 11,
+                    //     fontWeight: FontWeight.w600,
+                    //     color: Colors.green.shade800,
+                    //   ),
+                    // ),
                   ),
               ],
             ),
