@@ -13,13 +13,6 @@ Sri Lankan cooking dramatically transforms vegetable appearance through turmeric
 - **Mobile deployment** with on-device TFLite inference
 - **Extensible architecture** allowing users to add new classes with minimal data
 
-### The Problem
-
-| Raw | Red Curry | White Curry |
-|-----|-----------|-------------|
-| 🟠 **Carrot (Raw)** — Bright orange | 🟡 **Pumpkin (Red Curry)** — Yellow from turmeric | 🤍 **Carrot (White Curry)** — Cream from coconut milk |
-
-Traditional food recognition systems fail because they rely on color, texture, and shape — all of which change dramatically during Sri Lankan cooking.
 
 ---
 
@@ -201,9 +194,9 @@ sri-lankan-food-recognition/
 ## 🤝 Contributing
 
 Contributions are welcome! Planned future additions:
-- 🍆 More vegetables (eggplant/brinjal, bitter gourd, drumstick, okra)
-- 🍛 More cooking states (mallum, boiled, steamed)
-- 🌍 Extension to other South Asian cuisines
+-  More vegetables (eggplant/brinjal, bitter gourd, drumstick, okra)
+-  More cooking states (mallum, boiled, steamed)
+-  Extension to other South Asian cuisines
 
 ---
 
