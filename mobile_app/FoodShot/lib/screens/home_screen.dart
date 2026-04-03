@@ -327,28 +327,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       .bodySmall
                       ?.copyWith(color: cs.onSurfaceVariant),
                 ),
-                const SizedBox(height: 20),
-                // Quick guidance on what the model recognises
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                    border: Border.all(
-                        color: cs.primary.withValues(alpha: 0.12)),
-                  ),
-                  child: Text(
-                    '🥕 Carrot   🫘 Green beans   🎃 Pumpkin\n'
-                    'Raw · Tempered · White curry · Red curry',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
+                // const SizedBox(height: 20),
+                // // Quick guidance on what the model recognises
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //       horizontal: 16, vertical: 8),
+                //   decoration: BoxDecoration(
+                //     color: cs.primary.withValues(alpha: 0.06),
+                //     borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                //     border: Border.all(
+                //         color: cs.primary.withValues(alpha: 0.12)),
+                //   ),
+                //   // child: Text(
+                //   //   '🥕 Carrot   🫘 Green beans   🎃 Pumpkin\n'
+                //   //   'Raw · Tempered · White curry · Red curry',
+                //   //   textAlign: TextAlign.center,
+                //   //   style: TextStyle(
+                //   //     fontSize: 12,
+                //   //     color: cs.onSurfaceVariant,
+                //   //     height: 1.5,
+                //   //   ),
+                //   // ),
+                // ),
               ],
             )
           : Stack(children: [
